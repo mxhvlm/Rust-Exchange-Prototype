@@ -1,3 +1,7 @@
+use exchange_prototype::core::ExchangeCore;
+
 fn main() {
-    println!("Hello, world!");
+    env_logger::init();
+    let core = ExchangeCore::new();
+    core.run();
 }
