@@ -20,6 +20,7 @@ impl ExchangeCore {
         let mut orderbooks = HashMap::new();
 
         orderbooks.insert(Symbol::BTC, Orderbook::new(Symbol::BTC));
+        orderbooks.insert(Symbol::ETH, Orderbook::new(Symbol::ETH));
 
         ExchangeCore {
             inbound_server,
@@ -29,13 +30,17 @@ impl ExchangeCore {
         }
     }
 
-    pub fn run(self) {
+    pub fn run(mut self) {
         self.inbound_server.run(self.stop_core.clone());
+
+        let mut order_id = 0u64;
 
         loop {
             if let Ok(msg) = self.inbound_reciever.try_recv() {
                 info!("Processing inbound message: {:?}...", msg);
-                self.orderbooks[msg.symbol]
+                self.orderbooks.get_mut(&msg.symbol).expect("Orderbook for Symbol not found!")
+                    .add_limit(order_id, msg.side, msg.limit_price, msg.amount);
+                order_id += 1;
             }
         }
     }

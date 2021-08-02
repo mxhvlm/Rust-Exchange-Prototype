@@ -14,7 +14,7 @@ use rand::{random, Rng};
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 32;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MessageType {
     PLACE_LIMIT_ORDER = 1,
     DELETE_LIMIT_ORDER = 2,
@@ -30,6 +30,20 @@ impl MessageType {
             _ => None
         }
     }
+
+    fn has_volume(&self) -> bool {
+        match self {
+            MessageType::DELETE_LIMIT_ORDER => false,
+            _ => true
+        }
+    }
+
+    fn has_price(&self) -> bool {
+        match self {
+            MessageType::PLACE_LIMIT_ORDER => true,
+            _ => false
+        }
+    }
 }
 
 impl fmt::Display for MessageType {
@@ -43,7 +57,8 @@ pub struct InboundMessage {
     pub message_type: MessageType,
     pub symbol: Symbol,
     pub side: AskOrBid,
-    pub limit_price: Decimal
+    pub limit_price: Decimal,
+    pub amount: Decimal
 }
 
 struct Client {
@@ -64,18 +79,31 @@ impl InboundMessage {
             MSG_SIZE => {
                 let mut iter = buff.into_iter();
 
-                let symbol = Symbol::from_u8(iter.next().unwrap()).expect("invlaid symbol");
+                let symbol = Symbol::from_u8(iter.next().unwrap())
+                    .expect("invlaid symbol");
 
-                let message_type = MessageType::from_u8(iter.next().unwrap()).expect("invalid message num");
+                let message_type = MessageType::from_u8(iter.next().unwrap())
+                    .expect("invalid message num");
 
-                let side = AskOrBid::from_u8(iter.next().unwrap()).expect("invalid AskOrBuy");
+                let side = AskOrBid::from_u8(iter.next().unwrap())
+                    .expect("invalid AskOrBuy");
 
-                let limit_price = match message_type {
+                let limit_price = match message_type { //TODO: Properly read Decimals
                     MessageType::PLACE_MARKET_ORDER => Decimal::from(0),
                     _ => Decimal::from(500 + rand::thread_rng().gen_range(0..100)),
                 };
 
-                Ok(InboundMessage{symbol, side, message_type, limit_price })
+                Ok(InboundMessage{
+                    symbol,
+                    side,
+                    message_type: message_type.clone(),
+                    limit_price,
+                    amount:
+                        if message_type.has_volume()
+                        {
+                            Decimal::from(rand::thread_rng().gen_range(50..100))
+                        } else {Decimal::from(-1)}
+                })
             },
             _ => Err(ErrorKind::InvalidData)
         }
