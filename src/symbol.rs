@@ -9,16 +9,16 @@ pub enum Symbol {
 }
 
 #[derive(Debug)]
-pub enum AskOrBuy {
+pub enum AskOrBid {
     Ask = 0,
-    Buy = 1
+    Bid = 1
 }
 
-impl AskOrBuy {
-    pub fn from_u8(value: u8) -> Option<AskOrBuy> {
+impl AskOrBid {
+    pub fn from_u8(value: u8) -> Option<AskOrBid> {
         match value {
-            0 => Some(AskOrBuy::Ask),
-            1 => Some(AskOrBuy::Buy),
+            0 => Some(AskOrBid::Ask),
+            1 => Some(AskOrBid::Bid),
             _ => None
         }
     }

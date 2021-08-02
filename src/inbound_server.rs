@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use log::{info, warn};
 use std::io::{Read, ErrorKind};
 use std::thread::sleep;
-use crate::symbol::{Symbol, AskOrBuy};
+use crate::symbol::{Symbol, AskOrBid};
 use std::fmt::Formatter;
 use rust_decimal::Decimal;
 use rand::{random, Rng};
@@ -42,7 +42,7 @@ impl fmt::Display for MessageType {
 pub struct InboundMessage {
     pub message_type: MessageType,
     pub symbol: Symbol,
-    pub side: AskOrBuy,
+    pub side: AskOrBid,
     pub limit_price: Decimal
 }
 
@@ -68,7 +68,7 @@ impl InboundMessage {
 
                 let message_type = MessageType::from_u8(iter.next().unwrap()).expect("invalid message num");
 
-                let side = AskOrBuy::from_u8(iter.next().unwrap()).expect("invalid AskOrBuy");
+                let side = AskOrBid::from_u8(iter.next().unwrap()).expect("invalid AskOrBuy");
 
                 let limit_price = match message_type {
                     MessageType::PLACE_MARKET_ORDER => Decimal::from(0),
