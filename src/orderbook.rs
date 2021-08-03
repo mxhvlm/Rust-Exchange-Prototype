@@ -171,6 +171,7 @@ impl Orderbook {
 mod orderbook_tests {
     use super::*;
     use rand::Rng;
+    use std::hash::Hash;
 
     //Wrapper for isolated testing of Orderbook::insert_limit()
     fn insert_limit(orderbook: &mut Orderbook, order_id: &u64, side: AskOrBid, price: &Decimal, size: &Decimal) -> bool {
@@ -179,6 +180,13 @@ mod orderbook_tests {
         let price = price.clone();
 
         orderbook.insert_limit(order_id, side, price, size)
+    }
+
+    fn btree_keys_match<T: Eq + Hash + std::cmp::Ord, U, V>(
+        map1: &BTreeMap<T, U>,
+        map2: &BTreeMap<T, V>,
+    ) -> bool {
+        map1.len() == map2.len() && map1.keys().all(|k| map2.contains_key(k))
     }
 
     #[test]
@@ -286,6 +294,35 @@ mod orderbook_tests {
         insert_limit(&mut orderbook,&2u64, AskOrBid::Bid, &Decimal::from(501), &amount);
 
         assert_eq!(orderbook.can_trade(), true);
+    }
+
+    #[test]
+    fn test_get_orderbook_for_price() {
+        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let price_ask = Decimal::from(510);
+        let price_bid = Decimal::from(505);
+        let amount = Decimal::from(3945);
+
+        //No orders in orderbook
+        assert_eq!(orderbook.get_orderbook_for_price(&price_ask).is_none(), true);
+
+        //check for asks
+        insert_limit(&mut orderbook, &0, AskOrBid::Ask, &price_ask, &amount);
+
+        assert_eq!(orderbook.get_orderbook_for_price(&(price_ask - Decimal::from(1))).is_none(), true);
+        assert_eq!(btree_keys_match(orderbook.get_orderbook_for_price(&price_ask).unwrap(),
+            &orderbook.orders_ask), true);
+
+        //Check for bids
+        insert_limit(&mut orderbook, &1, AskOrBid::Bid, &price_bid, &amount);
+
+        assert_eq!(orderbook.get_orderbook_for_price(&(price_bid + Decimal::from(1))).is_none(), true);
+        assert_eq!(btree_keys_match(orderbook.get_orderbook_for_price(&price_bid).unwrap(),
+            &orderbook.orders_bid), true);
+
+        //Bring orderbook into inconsistent state
+        insert_limit(&mut orderbook, &2, AskOrBid::Bid, &price_ask, &amount);
+        assert_eq!(orderbook.get_orderbook_for_price(&price_ask).is_none(), true);
     }
 
     #[test]
