@@ -8,7 +8,7 @@ pub enum Symbol {
     ETH = 2,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AskOrBid {
     Ask = 0,
     Bid = 1

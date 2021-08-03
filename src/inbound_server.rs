@@ -121,17 +121,17 @@ impl InboundServer {
         }, rx)
     }
 
-    pub fn run(mut self, stop_server: Arc<AtomicBool>) {
+    pub fn run(mut self) {
         info!("Starting server on {}", LOCAL);
 
         thread::spawn(move || {
             let server = TcpListener::bind(LOCAL).expect("Unable to bind TCPListener!"); //TODO: Handle and print error to log
             server.set_nonblocking(true).expect("Failed to set TcpListener to nonblocking!");
             loop {
-                if stop_server.load(Ordering::Relaxed) {
-                    info!("Stopping server...");
-                    break;
-                }
+                // if stop_server.load(Ordering::Relaxed) {
+                //     info!("Stopping server...");
+                //     break;
+                // }
 
                 if let Ok((mut socket, addr)) = server.accept() {
                     info!("New connection from: {}", addr);
