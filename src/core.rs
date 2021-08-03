@@ -39,7 +39,7 @@ impl ExchangeCore {
             if let Ok(msg) = self.inbound_reciever.try_recv() {
                 info!("Processing inbound message: {:?}...", msg);
                 self.orderbooks.get_mut(&msg.symbol).expect("Orderbook for Symbol not found!")
-                    .add_limit(order_id, msg.side, msg.limit_price, msg.amount);
+                    .add_limit(&order_id, &msg.side, &msg.limit_price, &msg.amount);
                 order_id += 1;
             }
         }
