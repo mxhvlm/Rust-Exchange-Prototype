@@ -68,30 +68,20 @@ impl Orderbook {
         info!("Best Bid: {}", self.get_best_bid().unwrap_or(Decimal::from(-1)));
     }
 
-    // pub fn try_exec_limit(&mut self, order_id: u64, side: AskOrBid, price: Decimal, size: Decimal)
-    //     -> Option<Decimal>
-    // {
-    //     match side {
-    //         AskOrBid::Ask => {
-    //             if self.get_best_bid() >= price {
-    //                 self.orders_bid.iter().rev().next()
-    //             }
-    //             else {
-    //                 Some(size)
-    //             }
-    //         }
-    //         AskOrBid::Bid => {
-    //
-    //         }
-    //     }
-    // }
-
     pub fn process_limit(&mut self, order_id: &u64, side: AskOrBid, price: &Decimal, size: &Decimal) -> bool {
         let order_id = order_id.clone();
         let size = size.clone();
         let price = price.clone();
 
-        self.insert_limit(order_id, side, price, size)
+        if !self.insert_limit(order_id, side, price, size) {
+            return false;
+        }
+
+        if self.can_trade() {
+            info!("Executing trade...");
+        }
+
+        true
     }
 
     //TODO: Split into insert() and process_limit() which checks whether the order can be matched directly
@@ -118,10 +108,6 @@ impl Orderbook {
 
         info!("Inserted order {} at price {}", order_id, price);
         self.log_best_ask_bid();
-
-        if self.can_trade() {
-            info!("Executing trade...");
-        }
 
         true
     }
@@ -225,4 +211,5 @@ mod orderbook_tests {
 
         assert_eq!(orderbook.can_trade(), true);
     }
+
 }
