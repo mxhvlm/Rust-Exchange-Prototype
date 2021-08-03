@@ -3,3 +3,4 @@ pub mod core;
 pub mod symbol;
 pub mod orderbook;
 pub mod order;
+pub mod order_matcher;
