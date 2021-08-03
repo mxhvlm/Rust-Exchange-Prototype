@@ -157,9 +157,9 @@ impl Orderbook {
             return false;
         }
 
-        let mut order = Order{ id: order_id, unfilled: size};
+        let order = Order{ id: order_id, unfilled: size};
 
-        let mut orderbook = match side {
+        let orderbook = match side {
             AskOrBid::Ask => &mut self.orders_ask,
             AskOrBid::Bid => &mut self.orders_bid
         };
@@ -207,7 +207,7 @@ mod orderbook_tests {
     #[test]
     fn test_new_page() {
         let order = Order{ id: 0, unfilled: Decimal::from(10) };
-        let mut page = OrderbookPage::new(order.clone());
+        let page = OrderbookPage::new(order.clone());
 
         assert_eq!(page.orders.len(), 1);
         assert_eq!(order, page.orders.iter().next().map(|(_, order)|order.clone()).unwrap());
