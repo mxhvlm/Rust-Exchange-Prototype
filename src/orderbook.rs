@@ -56,6 +56,10 @@ impl Orderbook {
         self.orders_index.contains_key(order_id)
     }
 
+    //TODO: Think of another name that does a better job of explaining that it gets either the buy or sell order book
+    /**
+    Returns None if either no orders are in the orderbook or if the orderbook is in an inconsistent state
+     */
     fn get_orderbook_for_price(&self, price: &Decimal) -> Option<&BTreeMap<Decimal, OrderbookPage>> {
         //Orderbook is in an inconsistent state eg. get_best_buy() >= get_best_bid()
         if self.can_trade() {
