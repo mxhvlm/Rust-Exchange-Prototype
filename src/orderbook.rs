@@ -259,6 +259,18 @@ mod orderbook_tests {
     }
 
     #[test]
+    fn test_contains_order() {
+        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let id = 1234u64;
+
+        assert_eq!(orderbook.contains_order(&0), false);
+        assert_eq!(orderbook.contains_order(&1342), false);
+
+        insert_limit(&mut orderbook, &id, AskOrBid::Bid, &Decimal::from(328), &Decimal::from(834));
+        assert_eq!(orderbook.contains_order(&id), true);
+    }
+
+    #[test]
     fn test_can_trade() {
         let mut orderbook = Orderbook::new(Symbol::BTC);
         let amount = Decimal::from(3945);
