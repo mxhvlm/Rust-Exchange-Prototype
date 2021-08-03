@@ -78,15 +78,30 @@ impl Orderbook {
         None
     }
 
-    // fn get_order(&self, order_id: &u64) -> Option<Order> {
-    //     match self.contains_order(order_id) {
-    //         true => {
-    //             let price = self.orders_index.get(order_id);
-    //
-    //         }
-    //     }
-    // }
-    //
+    fn get_order(&self, order_id: &u64) -> Option<&Order> {
+        let price = self.orders_index.get(order_id);
+
+        if price.is_none() {
+            return None;
+        }
+
+        let price = price.unwrap();
+        let orderbook = self.get_orderbook_for_price(&price);
+        if orderbook.is_none() {
+            return None;
+        }
+
+        let order_page = orderbook.unwrap().get(&price);
+        if order_page.is_none() {
+            return None;
+        }
+        let order = order_page.unwrap().orders.get(&order_id);
+        if order.is_none() {
+            return None;
+        }
+        Some(order.unwrap())
+    }
+
     // pub fn get_unfilled(&self, order_id: &u64) -> Option<Decimal> {
     //     match self.contains_order(order_id) {
     //         true => {
@@ -323,6 +338,19 @@ mod orderbook_tests {
         //Bring orderbook into inconsistent state
         insert_limit(&mut orderbook, &2, AskOrBid::Bid, &price_ask, &amount);
         assert_eq!(orderbook.get_orderbook_for_price(&price_ask).is_none(), true);
+    }
+
+    #[test]
+    fn test_get_order() {
+        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let price = Decimal::from(505);
+        let amount = Decimal::from(3945);
+
+        assert_eq!(orderbook.get_order(&0).is_none(), true);
+
+        insert_limit(&mut orderbook, &432, AskOrBid::Bid, &price, &amount);
+        assert_eq!(orderbook.get_order(&432).unwrap().unfilled, amount);
+        assert_eq!(orderbook.get_order(&212).is_none(), true);
     }
 
     #[test]
