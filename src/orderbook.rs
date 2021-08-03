@@ -79,10 +79,15 @@ impl Orderbook {
     // }
 
     //TODO: Split into insert() and process_limit() which checks whether the order can be matched directly
-    pub fn add_limit(&mut self, order_id: &u64, side: &AskOrBid, price: &Decimal, size: &Decimal) {
+    pub fn add_limit(&mut self, order_id: &u64, side: &AskOrBid, price: &Decimal, size: &Decimal) -> bool {
         let order_id = order_id.clone();
         let size = size.clone();
         let price = price.clone();
+
+        //Return false if an order with the same id is already inserted into orderbook
+        if self.orders_index.contains_key(&order_id) {
+            return false;
+        }
 
         let mut order = Order{ id: order_id, unfilled: size};
 
@@ -104,36 +109,80 @@ impl Orderbook {
         if self.can_trade() {
             info!("Executing trade...");
         }
+
+        true
     }
 }
 
 #[cfg(test)]
-mod test {
+mod orderbook_tests {
     use super::*;
+    use rand::Rng;
 
     #[test]
     fn test_new_page() {
-        let dummy_order = Order{ id: 0, unfilled: Decimal::from(10) };
-        let mut page = OrderbookPage::new(dummy_order.clone());
+        let order = Order{ id: 0, unfilled: Decimal::from(10) };
+        let mut page = OrderbookPage::new(order.clone());
 
         assert_eq!(page.orders.len(), 1);
-        assert_eq!(dummy_order, page.orders.iter().next().map(|(_, order)|order.clone()).unwrap());
+        assert_eq!(order, page.orders.iter().next().map(|(_, order)|order.clone()).unwrap());
 
-        assert_eq!(dummy_order.unfilled, page.amount);
+        assert_eq!(order.unfilled, page.amount);
     }
 
     #[test]
     fn test_orderbook_add_limit() {
         let mut orderbook = Orderbook::new(Symbol::BTC);
-        let dummy_id = 16u64;
-        let dummy_order = Order{ id: dummy_id, unfilled: Decimal::from(10) };
-        let dummy_price = Decimal::from(100);
-        orderbook.add_limit(&dummy_id,&AskOrBid::Ask, &dummy_price, &dummy_order.unfilled);
+        let mut id = 16u64;
+        let price = Decimal::from(100);
+        let unfilled = Decimal::from(16);
 
-        assert_eq!(orderbook.orders_ask.get(&dummy_price).unwrap().orders.get(&dummy_id).unwrap(), &dummy_order);
+        //Adding limit order with an unused order_id
+        assert_eq!(orderbook.add_limit(&id,&AskOrBid::Ask, &price, &unfilled), true);
 
-        assert_eq!(orderbook.orders_index.get(&dummy_id).unwrap(), &dummy_price);
+        //Check if order got written into the BTree
+        assert_eq!(orderbook.orders_ask.get(&price).unwrap().orders.get(&id).unwrap().id, id);
 
-        //TODO: Implement tests for bid orders
+        //Check if index got written into HashMap
+        assert_eq!(orderbook.orders_index.get(&id).unwrap(), &price);
+
+        //Adding an order with the same order_id twice shouldn't be possible.
+        assert_eq!(orderbook.add_limit(&id, &AskOrBid::Ask, &price, &unfilled), false);
+
+        //Check bid side (Don't hanve to check indicies since there is only one HashMap
+        id += 1;
+        assert_eq!(orderbook.add_limit(&id, &AskOrBid::Bid, &price, &unfilled), true);
+        assert_eq!(orderbook.orders_bid.get(&price).unwrap().orders.get(&id).unwrap().id, id);
+    }
+
+    #[test]
+    fn test_get_best_ask_bid() {
+        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let mut id = 0u64;
+        let amount = Decimal::from(50);
+
+        //No order has been written yet
+        assert_eq!(orderbook.get_best_ask(), None);
+        assert_eq!(orderbook.get_best_bid(), None);
+
+        //Add a bunch of orders at random prices to ask and bid and save the best ask and bid price
+        //for comparison
+        let mut best_ask = Decimal::from(rand::thread_rng().gen_range(0..100) + 512);
+        let mut best_bid = best_ask.clone();
+        for n in 1..10 {
+            let rand_price = Decimal::from(rand::thread_rng().gen_range(0..100) + 512);
+            if rand_price < best_ask {
+                best_ask = rand_price;
+            }
+            if rand_price > best_bid {
+                best_bid = rand_price;
+            }
+            orderbook.add_limit(&id, &AskOrBid::Ask, &rand_price, &amount);
+            id += 1;
+            orderbook.add_limit(&id, &AskOrBid::Bid, &rand_price, &amount);
+            id += 1;
+        }
+        assert_eq!(orderbook.get_best_ask().unwrap(), best_ask);
+        assert_eq!(orderbook.get_best_bid().unwrap(), best_bid);
     }
 }
