@@ -2,6 +2,7 @@ use crate::symbol::{Symbol, AskOrBid};
 use rust_decimal::Decimal;
 use std::collections::{BTreeMap, HashMap};
 use log::info;
+use rust_decimal::prelude::Zero;
 
 struct OrderbookPage {
     pub orders: HashMap<u64, Order>,
@@ -43,13 +44,53 @@ impl Orderbook {
         }
     }
 
-    fn get_best_ask(&self) -> Option<Decimal> {
+    pub fn get_best_ask(&self) -> Option<Decimal> {
         self.orders_ask.iter().next().map(|(price, _)| *price)
     }
 
-    fn get_best_bid(&self) -> Option<Decimal> {
+    pub fn get_best_bid(&self) -> Option<Decimal> {
         self.orders_bid.iter().rev().next().map(|(price, _)|*price)
     }
+
+    pub fn contains_order(&self, order_id: &u64) -> bool {
+        self.orders_index.contains_key(order_id)
+    }
+
+    fn get_orderbook_for_price(&self, price: &Decimal) -> Option<&BTreeMap<Decimal, OrderbookPage>> {
+        //Orderbook is in an inconsistent state eg. get_best_buy() >= get_best_bid()
+        if self.can_trade() {
+            return None;
+        }
+        if let Some(best_ask) = self.get_best_ask() {
+            if *price >= best_ask {
+                return Some(&self.orders_ask);
+            }
+        }
+        if let Some(best_bid) = self.get_best_bid() {
+            if *price <= best_bid {
+                return Some(&self.orders_bid);
+            }
+        }
+        None
+    }
+
+    // fn get_order(&self, order_id: &u64) -> Option<Order> {
+    //     match self.contains_order(order_id) {
+    //         true => {
+    //             let price = self.orders_index.get(order_id);
+    //
+    //         }
+    //     }
+    // }
+    //
+    // pub fn get_unfilled(&self, order_id: &u64) -> Option<Decimal> {
+    //     match self.contains_order(order_id) {
+    //         true => {
+    //             let page = self.orders_index.
+    //         },
+    //         false => None
+    //     }
+    // }
 
     fn can_trade(&self) -> bool {
         let best_ask = self.get_best_ask();
@@ -87,8 +128,13 @@ impl Orderbook {
     //TODO: Split into insert() and process_limit() which checks whether the order can be matched directly
 
     fn insert_limit(&mut self, order_id: u64, side: AskOrBid, price: Decimal, size: Decimal) -> bool {
+
+        if price <= Decimal::zero() || size <= Decimal::zero() {
+            return false;
+        }
+
         //Return false if an order with the same id is already inserted into orderbook
-        if self.orders_index.contains_key(&order_id) {
+        if self.orders_index.contains_key(&order_id){
             return false;
         }
 
@@ -110,6 +156,10 @@ impl Orderbook {
         self.log_best_ask_bid();
 
         true
+    }
+
+    fn remove_limit(&mut self, order_id: &u64) -> bool {
+        false
     }
 }
 
@@ -161,6 +211,16 @@ mod orderbook_tests {
         id += 1;
         assert_eq!(insert_limit(&mut orderbook,&id, AskOrBid::Bid, &price, &unfilled), true);
         assert_eq!(orderbook.orders_bid.get(&price).unwrap().orders.get(&id).unwrap().id, id);
+
+        //Test for price <= 0 and amount <= 0
+        id += 1;
+        assert_eq!(insert_limit(&mut orderbook, &id, AskOrBid::Bid, &Decimal::from(0), &unfilled), false);
+        id += 1;
+        assert_eq!(insert_limit(&mut orderbook, &id, AskOrBid::Bid, &Decimal::from(-1), &unfilled), false);
+        id += 1;
+        assert_eq!(insert_limit(&mut orderbook, &id, AskOrBid::Bid, &price, &Decimal::from(-1)), false);
+        id += 1;
+        assert_eq!(insert_limit(&mut orderbook, &id, AskOrBid::Bid, &price, &Decimal::from(0)), false);
     }
 
     #[test]
@@ -210,6 +270,17 @@ mod orderbook_tests {
         insert_limit(&mut orderbook,&2u64, AskOrBid::Bid, &Decimal::from(501), &amount);
 
         assert_eq!(orderbook.can_trade(), true);
+    }
+
+    #[test]
+    fn test_remove_limit() {
+        let mut orderbook = Orderbook::new(Symbol::BTC);
+
+        assert_eq!(orderbook.remove_limit(&0), false);
+        insert_limit(&mut orderbook, &0, AskOrBid::Bid, &Decimal::from(20), &Decimal::from(20));
+        //Check if you can remove order
+        assert_eq!(orderbook.remove_limit(&0), true);
+        assert_eq!(orderbook.get_best_bid(), None);
     }
 
 }
