@@ -52,7 +52,15 @@ impl Orderbook {
     }
 
     fn can_trade(&self) -> bool {
-        self.get_best_ask() <= self.get_best_bid()
+        let best_ask = self.get_best_ask();
+        let best_bid = self.get_best_bid();
+
+        if let Some(best_ask) = best_ask {
+            if let Some(best_bid) = best_bid {
+                return best_bid >= best_ask;
+            }
+        }
+        false
     }
 
     fn log_best_ask_bid(&self) {
@@ -184,5 +192,10 @@ mod orderbook_tests {
         }
         assert_eq!(orderbook.get_best_ask().unwrap(), best_ask);
         assert_eq!(orderbook.get_best_bid().unwrap(), best_bid);
+    }
+
+    #[test]
+    fn test_can_trade() {
+
     }
 }
