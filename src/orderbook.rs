@@ -86,12 +86,17 @@ impl Orderbook {
     //     }
     // }
 
-    //TODO: Split into insert() and process_limit() which checks whether the order can be matched directly
-    pub fn add_limit(&mut self, order_id: &u64, side: &AskOrBid, price: &Decimal, size: &Decimal) -> bool {
+    pub fn process_limit(&mut self, order_id: &u64, side: AskOrBid, price: &Decimal, size: &Decimal) -> bool {
         let order_id = order_id.clone();
         let size = size.clone();
         let price = price.clone();
 
+        self.insert_limit(order_id, side, price, size)
+    }
+
+    //TODO: Split into insert() and process_limit() which checks whether the order can be matched directly
+
+    fn insert_limit(&mut self, order_id: u64, side: AskOrBid, price: Decimal, size: Decimal) -> bool {
         //Return false if an order with the same id is already inserted into orderbook
         if self.orders_index.contains_key(&order_id) {
             return false;
@@ -127,6 +132,15 @@ mod orderbook_tests {
     use super::*;
     use rand::Rng;
 
+    //Wrapper for isolated testing of Orderbook::insert_limit()
+    fn insert_limit(orderbook: &mut Orderbook, order_id: &u64, side: AskOrBid, price: &Decimal, size: &Decimal) -> bool {
+        let order_id = order_id.clone();
+        let size = size.clone();
+        let price = price.clone();
+
+        orderbook.insert_limit(order_id, side, price, size)
+    }
+
     #[test]
     fn test_new_page() {
         let order = Order{ id: 0, unfilled: Decimal::from(10) };
@@ -146,7 +160,7 @@ mod orderbook_tests {
         let unfilled = Decimal::from(16);
 
         //Adding limit order with an unused order_id
-        assert_eq!(orderbook.add_limit(&id,&AskOrBid::Ask, &price, &unfilled), true);
+        assert_eq!(insert_limit(&mut orderbook, &id, AskOrBid::Ask, &price, &unfilled), true);
 
         //Check if order got written into the BTree
         assert_eq!(orderbook.orders_ask.get(&price).unwrap().orders.get(&id).unwrap().id, id);
@@ -155,11 +169,11 @@ mod orderbook_tests {
         assert_eq!(orderbook.orders_index.get(&id).unwrap(), &price);
 
         //Adding an order with the same order_id twice shouldn't be possible.
-        assert_eq!(orderbook.add_limit(&id, &AskOrBid::Ask, &price, &unfilled), false);
+        assert_eq!(insert_limit(&mut orderbook,&id, AskOrBid::Ask, &price, &unfilled), false);
 
         //Check bid side (Don't hanve to check indicies since there is only one HashMap
         id += 1;
-        assert_eq!(orderbook.add_limit(&id, &AskOrBid::Bid, &price, &unfilled), true);
+        assert_eq!(insert_limit(&mut orderbook,&id, AskOrBid::Bid, &price, &unfilled), true);
         assert_eq!(orderbook.orders_bid.get(&price).unwrap().orders.get(&id).unwrap().id, id);
     }
 
@@ -185,9 +199,9 @@ mod orderbook_tests {
             if rand_price > best_bid {
                 best_bid = rand_price;
             }
-            orderbook.add_limit(&id, &AskOrBid::Ask, &rand_price, &amount);
+            insert_limit(&mut orderbook,&id, AskOrBid::Ask, &rand_price, &amount);
             id += 1;
-            orderbook.add_limit(&id, &AskOrBid::Bid, &rand_price, &amount);
+            insert_limit(&mut orderbook,&id, AskOrBid::Bid, &rand_price, &amount);
             id += 1;
         }
         assert_eq!(orderbook.get_best_ask().unwrap(), best_ask);
@@ -201,13 +215,13 @@ mod orderbook_tests {
 
         assert_eq!(orderbook.can_trade(), false);
 
-        orderbook.add_limit(&0u64, &AskOrBid::Bid, &Decimal::from(500), &amount);
+        insert_limit(&mut orderbook,&0u64, AskOrBid::Bid, &Decimal::from(500), &amount);
         assert_eq!(orderbook.can_trade(), false);
-        orderbook.add_limit(&1u64, &AskOrBid::Ask, &Decimal::from(501), &amount);
+        insert_limit(&mut orderbook,&1u64, AskOrBid::Ask, &Decimal::from(501), &amount);
 
         assert_eq!(orderbook.can_trade(), false);
 
-        orderbook.add_limit(&2u64, &AskOrBid::Bid, &Decimal::from(501), &amount);
+        insert_limit(&mut orderbook,&2u64, AskOrBid::Bid, &Decimal::from(501), &amount);
 
         assert_eq!(orderbook.can_trade(), true);
     }
