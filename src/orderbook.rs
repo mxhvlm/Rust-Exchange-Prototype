@@ -196,6 +196,19 @@ mod orderbook_tests {
 
     #[test]
     fn test_can_trade() {
+        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let amount = Decimal::from(3945);
 
+        assert_eq!(orderbook.can_trade(), false);
+
+        orderbook.add_limit(&0u64, &AskOrBid::Bid, &Decimal::from(500), &amount);
+        assert_eq!(orderbook.can_trade(), false);
+        orderbook.add_limit(&1u64, &AskOrBid::Ask, &Decimal::from(501), &amount);
+
+        assert_eq!(orderbook.can_trade(), false);
+
+        orderbook.add_limit(&2u64, &AskOrBid::Bid, &Decimal::from(501), &amount);
+
+        assert_eq!(orderbook.can_trade(), true);
     }
 }
