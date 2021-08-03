@@ -1,9 +1,7 @@
 use crate::symbol::{Symbol, AskOrBid};
 use rust_decimal::Decimal;
-use std::collections::{BTreeMap, LinkedList, HashMap};
+use std::collections::{BTreeMap, HashMap};
 use log::info;
-use std::fmt;
-use std::fmt::Formatter;
 
 struct OrderbookPage {
     pub orders: HashMap<u64, Order>,
@@ -17,7 +15,7 @@ pub struct Orderbook {
     orders_index: HashMap<u64, Decimal>
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Order {
     pub id: u64,
     pub unfilled: Decimal,
@@ -80,7 +78,12 @@ impl Orderbook {
     //     }
     // }
 
-    pub fn add_limit(&mut self, order_id: u64, side: AskOrBid, price: Decimal, size: Decimal) {
+    //TODO: Split into insert() and process_limit() which checks whether the order can be matched directly
+    pub fn add_limit(&mut self, order_id: &u64, side: &AskOrBid, price: &Decimal, size: &Decimal) {
+        let order_id = order_id.clone();
+        let size = size.clone();
+        let price = price.clone();
+
         let mut order = Order{ id: order_id, unfilled: size};
 
         let mut orderbook = match side {
@@ -101,5 +104,36 @@ impl Orderbook {
         if self.can_trade() {
             info!("Executing trade...");
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_new_page() {
+        let dummy_order = Order{ id: 0, unfilled: Decimal::from(10) };
+        let mut page = OrderbookPage::new(dummy_order.clone());
+
+        assert_eq!(page.orders.len(), 1);
+        assert_eq!(dummy_order, page.orders.iter().next().map(|(_, order)|order.clone()).unwrap());
+
+        assert_eq!(dummy_order.unfilled, page.amount);
+    }
+
+    #[test]
+    fn test_orderbook_add_limit() {
+        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let dummy_id = 16u64;
+        let dummy_order = Order{ id: dummy_id, unfilled: Decimal::from(10) };
+        let dummy_price = Decimal::from(100);
+        orderbook.add_limit(&dummy_id,&AskOrBid::Ask, &dummy_price, &dummy_order.unfilled);
+
+        assert_eq!(orderbook.orders_ask.get(&dummy_price).unwrap().orders.get(&dummy_id).unwrap(), &dummy_order);
+
+        assert_eq!(orderbook.orders_index.get(&dummy_id).unwrap(), &dummy_price);
+
+        //TODO: Implement tests for bid orders
     }
 }
