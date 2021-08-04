@@ -1,11 +1,12 @@
 use log::info;
-use crate::inbound_server::{InboundServer, InboundMessage};
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::HashMap;
+use crate::inbound_server::InboundServer;
 use crate::orderbook::Orderbook;
 use crate::symbol::Symbol;
+use crate::inbound_msg::InboundMessage;
 
 pub struct ExchangeCore {
     orderbooks: HashMap<Symbol, Orderbook>,
