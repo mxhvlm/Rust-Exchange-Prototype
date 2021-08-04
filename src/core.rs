@@ -41,7 +41,7 @@ impl ExchangeCore {
 
     fn process_inbound_message(&mut self, msg: &InboundMessage) {
         self.orderbooks.get_mut(&msg.symbol).expect("Orderbook for Symbol not found!")
-            .process_limit(&self.last_order_id, msg.side.clone(), &msg.limit_price, &msg.amount);
+            .insert_try_exec_limit(&self.last_order_id, msg.side.clone(), &msg.limit_price, &msg.amount);
         self.last_order_id += 1;
     }
 }

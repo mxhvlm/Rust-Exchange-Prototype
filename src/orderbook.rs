@@ -128,7 +128,7 @@ impl Orderbook {
         info!("Best Bid: {}", self.get_best_bid().unwrap_or(Decimal::from(-1)));
     }
 
-    pub fn process_limit(&mut self, order_id: &u64, side: AskOrBid, price: &Decimal, size: &Decimal) -> bool {
+    pub fn insert_try_exec_limit(&mut self, order_id: &u64, side: AskOrBid, price: &Decimal, size: &Decimal) -> bool {
         let order_id = order_id.clone();
         let size = size.clone();
         let price = price.clone();
@@ -143,8 +143,6 @@ impl Orderbook {
 
         true
     }
-
-    //TODO: Split into insert() and process_limit() which checks whether the order can be matched directly
 
     fn insert_limit(&mut self, order_id: u64, side: AskOrBid, price: Decimal, size: Decimal) -> bool {
 
