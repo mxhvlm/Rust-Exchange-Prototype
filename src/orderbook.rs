@@ -56,13 +56,12 @@ impl Orderbook {
         self.orders_index.contains_key(order_id)
     }
 
-    //TODO: Think of another name that does a better job of explaining that it gets either the buy or sell order book
     /**
     Returns None if either no orders are in the orderbook or if the orderbook is in an inconsistent state
      */
-    fn get_orderbook_for_price(&self, price: &Decimal) -> Option<&BTreeMap<Decimal, OrderbookPage>> {
+    fn get_orderbook_side_for_price(&self, price: &Decimal) -> Option<&BTreeMap<Decimal, OrderbookPage>> {
         //Orderbook is in an inconsistent state eg. get_best_buy() >= get_best_bid()
-        if self.can_trade() {
+        if self.trade_possible() {
             return None;
         }
         if let Some(best_ask) = self.get_best_ask() {
@@ -86,7 +85,7 @@ impl Orderbook {
         }
 
         let price = price.unwrap();
-        let orderbook = self.get_orderbook_for_price(&price);
+        let orderbook = self.get_orderbook_side_for_price(&price);
         if orderbook.is_none() {
             return None;
         }
@@ -102,16 +101,16 @@ impl Orderbook {
         Some(order.unwrap())
     }
 
-    // pub fn get_unfilled(&self, order_id: &u64) -> Option<Decimal> {
-    //     match self.contains_order(order_id) {
-    //         true => {
-    //             let page = self.orders_index.
-    //         },
-    //         false => None
-    //     }
-    // }
+    /*pub fn get_unfilled(&self, order_id: &u64) -> Option<Decimal> {
+        match self.contains_order(order_id) {
+            true => {
+                let page = self.orders_index.
+            },
+            false => None
+        }
+    }*/
 
-    fn can_trade(&self) -> bool {
+    fn trade_possible(&self) -> bool {
         let best_ask = self.get_best_ask();
         let best_bid = self.get_best_bid();
 
@@ -137,7 +136,7 @@ impl Orderbook {
             return false;
         }
 
-        if self.can_trade() {
+        if self.trade_possible() {
             info!("Executing trade...");
         }
 
@@ -292,50 +291,50 @@ mod orderbook_tests {
     }
 
     #[test]
-    fn test_can_trade() {
+    fn test_trade_possible() {
         let mut orderbook = Orderbook::new(Symbol::BTC);
         let amount = Decimal::from(3945);
 
-        assert_eq!(orderbook.can_trade(), false);
+        assert_eq!(orderbook.trade_possible(), false);
 
         insert_limit(&mut orderbook,&0u64, AskOrBid::Bid, &Decimal::from(500), &amount);
-        assert_eq!(orderbook.can_trade(), false);
+        assert_eq!(orderbook.trade_possible(), false);
         insert_limit(&mut orderbook,&1u64, AskOrBid::Ask, &Decimal::from(501), &amount);
 
-        assert_eq!(orderbook.can_trade(), false);
+        assert_eq!(orderbook.trade_possible(), false);
 
         insert_limit(&mut orderbook,&2u64, AskOrBid::Bid, &Decimal::from(501), &amount);
 
-        assert_eq!(orderbook.can_trade(), true);
+        assert_eq!(orderbook.trade_possible(), true);
     }
 
     #[test]
-    fn test_get_orderbook_for_price() {
+    fn test_get_orderbook_side_for_price() {
         let mut orderbook = Orderbook::new(Symbol::BTC);
         let price_ask = Decimal::from(510);
         let price_bid = Decimal::from(505);
         let amount = Decimal::from(3945);
 
         //No orders in orderbook
-        assert_eq!(orderbook.get_orderbook_for_price(&price_ask).is_none(), true);
+        assert_eq!(orderbook.get_orderbook_side_for_price(&price_ask).is_none(), true);
 
         //check for asks
         insert_limit(&mut orderbook, &0, AskOrBid::Ask, &price_ask, &amount);
 
-        assert_eq!(orderbook.get_orderbook_for_price(&(price_ask - Decimal::from(1))).is_none(), true);
-        assert_eq!(btree_keys_match(orderbook.get_orderbook_for_price(&price_ask).unwrap(),
-            &orderbook.orders_ask), true);
+        assert_eq!(orderbook.get_orderbook_side_for_price(&(price_ask - Decimal::from(1))).is_none(), true);
+        assert_eq!(btree_keys_match(orderbook.get_orderbook_side_for_price(&price_ask).unwrap(),
+                                    &orderbook.orders_ask), true);
 
         //Check for bids
         insert_limit(&mut orderbook, &1, AskOrBid::Bid, &price_bid, &amount);
 
-        assert_eq!(orderbook.get_orderbook_for_price(&(price_bid + Decimal::from(1))).is_none(), true);
-        assert_eq!(btree_keys_match(orderbook.get_orderbook_for_price(&price_bid).unwrap(),
-            &orderbook.orders_bid), true);
+        assert_eq!(orderbook.get_orderbook_side_for_price(&(price_bid + Decimal::from(1))).is_none(), true);
+        assert_eq!(btree_keys_match(orderbook.get_orderbook_side_for_price(&price_bid).unwrap(),
+                                    &orderbook.orders_bid), true);
 
         //Bring orderbook into inconsistent state
         insert_limit(&mut orderbook, &2, AskOrBid::Bid, &price_ask, &amount);
-        assert_eq!(orderbook.get_orderbook_for_price(&price_ask).is_none(), true);
+        assert_eq!(orderbook.get_orderbook_side_for_price(&price_ask).is_none(), true);
     }
 
     #[test]
