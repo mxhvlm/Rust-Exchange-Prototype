@@ -1,16 +1,11 @@
-use std::net::{TcpStream, TcpListener};
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc};
-use std::{thread, fmt};
-use std::sync::atomic::{AtomicBool, Ordering};
-use log::{info, warn};
-use std::io::{Read, ErrorKind};
-use std::thread::sleep;
+use crate::inbound_msg::InboundMessage;
+use std::io::ErrorKind;
+use std::sync::mpsc;
 use crate::symbol::{Symbol, AskOrBid};
-use std::fmt::Formatter;
 use rust_decimal::Decimal;
-use rand::{random, Rng};
-use crate::inbound_msg::{InboundMessage, MessageType};
+use core::fmt;
+use std::fmt::Formatter;
 
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 32;
@@ -32,77 +27,97 @@ impl<T> AsyncMessage<T> {
     }
 }
 
-struct Client {
-    socket: TcpStream,
-    client_num: u32
+#[derive(Debug, Eq, PartialEq)]
+pub struct InboundMessage {
+    pub message_type: MessageType,
+    pub symbol: Symbol,
+    pub side: AskOrBid,
+    pub limit_price: Decimal,
+    pub amount: Decimal
 }
 
-
-pub struct InboundTcpServer {
-    clients: Vec<Client>,
-    message_transmitter: Sender<AsyncMessage<InboundMessage>>,
-    last_client_num: u32
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum MessageType {
+    PlaceLimitOrder = 1,
+    DeleteLimitOrder = 2,
+    PlaceMarketOrder = 3
 }
 
-impl InboundServer for InboundTcpServer {
-    fn new() -> (Receiver<AsyncMessage<InboundMessage>>, Self) {
-        let (tx, rx) = mpsc::channel::<AsyncMessage<InboundMessage>>();
-
-        (rx, InboundTcpServer {
-            clients: Vec::new(),
-            message_transmitter: tx,
-            last_client_num: 0
-        })
+impl MessageType {
+    pub(crate) fn from_u8(value: u8) -> Option<MessageType> {
+        match value {
+            1 => Some(MessageType::PlaceLimitOrder),
+            2 => Some(MessageType::DeleteLimitOrder),
+            3 => Some(MessageType::PlaceMarketOrder),
+            _ => None
+        }
     }
 
-    fn run(mut self) {
-        info!("Starting server on {}", LOCAL);
+    pub(crate) fn has_volume(&self) -> bool {
+        match self {
+            MessageType::DeleteLimitOrder => false,
+            _ => true
+        }
+    }
 
-        thread::spawn(move || {
-            let server = TcpListener::bind(LOCAL).expect("Unable to bind TCPListener!"); //TODO: Handle and print error to log
-            server.set_nonblocking(true).expect("Failed to set TcpListener to nonblocking!");
-            loop {
-                // if stop_server.load(Ordering::Relaxed) {
-                //     info!("Stopping server...");
-                //     break;
-                // }
+    pub fn has_price(&self) -> bool {
+        match self {
+            MessageType::PlaceLimitOrder => true,
+            _ => false
+        }
+    }
+}
 
-                if let Ok((mut socket, addr)) = server.accept() {
-                    info!("New connection from: {}", addr);
-                    let tx = self.message_transmitter.clone();
+impl fmt::Display for MessageType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
-                    self.clients.push(
-                        Client{socket: socket.try_clone().expect("Failed to clone the client"),
-                            client_num: self.last_client_num}
-                    );
+impl InboundMessage {
+    pub fn from_bytes(buff: Vec<u8>) -> Result<InboundMessage, ErrorKind> {
+        info!("{}", buff.len());
+        match buff.len() {
+            MSG_SIZE => {
+                let mut iter = buff.into_iter();
 
-                    thread::spawn(move || loop {
-                        let mut buff = vec![0 as u8; MSG_SIZE];
+                let symbol = Symbol::from_u8(iter.next().unwrap())
+                    .expect("invalid symbol");
 
-                        match socket.read(&mut buff) {
-                            Ok(_) => {
-                                //iterate over buffer and collect every byte into a buffer until we hit null byte
-                                //let msg = buff.into_iter().take_while(|&x| x != 0).collect::<Vec<_>>();
-                                let msg = InboundMessage::from_bytes(buff);
+                let message_type = MessageType::from_u8(iter.next().unwrap())
+                    .expect("invalid message num");
 
-                                match msg {
-                                    Err(err) => warn!("Failed to read inbound message: {:?}", err),
-                                    Ok(in_msg) => {
-                                        //tx.send(in_msg).expect("failed to send msg to rx");
-                                    }
-                                }
-                            },
-                            Err(ref err) if err.kind() == ErrorKind::WouldBlock => (),
-                            Err(_) => {
-                                info!("Closing connection with {}", addr);
-                                break;
-                            }
-                        }
-                        //TODO: Write confirmation
-                        sleep(std::time::Duration::from_millis(100));
-                    });
-                }
-            }
-        });
+                let side = AskOrBid::from_u8(iter.next().unwrap())
+                    .expect("invalid AskOrBuy");
+
+                let limit_price = match message_type { //TODO: Properly read Decimals
+                    MessageType::PlaceMarketOrder => Decimal::from(0),
+                    _ => Decimal::from(500 + rand::thread_rng().gen_range(0..100)),
+                };
+
+                Ok(InboundMessage{
+                    symbol,
+                    side,
+                    message_type: message_type.clone(),
+                    limit_price,
+                    amount:
+                    if message_type.has_volume()
+                    {
+                        Decimal::from(rand::thread_rng().gen_range(50..100))
+                    } else {Decimal::from(-1)}
+                })
+            },
+            _ => Err(ErrorKind::InvalidData)
+        }
+    }
+
+    pub fn get_dummy() -> InboundMessage {
+        InboundMessage {
+            message_type: MessageType::PlaceLimitOrder,
+            symbol: Symbol::BTC,
+            side: AskOrBid::Ask,
+            limit_price: Decimal::from(512),
+            amount: Decimal::from(20)
+        }
     }
 }
