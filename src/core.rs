@@ -3,7 +3,7 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::HashMap;
-use crate::inbound_server::InboundServer;
+use crate::inbound_server::InboundTcpServer;
 use crate::orderbook::Orderbook;
 use crate::symbol::Symbol;
 use crate::inbound_msg::InboundMessage;
@@ -27,7 +27,7 @@ impl ExchangeCore {
     }
 
     pub fn run(mut self) {
-        let (mut inbound_server, inbound_reciever) = InboundServer::new();
+        let (mut inbound_server, inbound_reciever) = InboundTcpServer::new();
 
         let stop_inbound_server = Arc::new(AtomicBool::new(false));
         inbound_server.run();

@@ -17,31 +17,31 @@ pub struct InboundMessage {
 
 #[derive(Debug, Clone)]
 pub enum MessageType {
-    PLACE_LIMIT_ORDER = 1,
-    DELETE_LIMIT_ORDER = 2,
-    PLACE_MARKET_ORDER = 3
+    PlaceLimitOrder = 1,
+    DeleteLimitOrder = 2,
+    PlaceMarketOrder = 3
 }
 
 impl MessageType {
     pub(crate) fn from_u8(value: u8) -> Option<MessageType> {
         match value {
-            1 => Some(MessageType::PLACE_LIMIT_ORDER),
-            2 => Some(MessageType::DELETE_LIMIT_ORDER),
-            3 => Some(MessageType::PLACE_MARKET_ORDER),
+            1 => Some(MessageType::PlaceLimitOrder),
+            2 => Some(MessageType::DeleteLimitOrder),
+            3 => Some(MessageType::PlaceMarketOrder),
             _ => None
         }
     }
 
     pub(crate) fn has_volume(&self) -> bool {
         match self {
-            MessageType::DELETE_LIMIT_ORDER => false,
+            MessageType::DeleteLimitOrder => false,
             _ => true
         }
     }
 
     pub fn has_price(&self) -> bool {
         match self {
-            MessageType::PLACE_LIMIT_ORDER => true,
+            MessageType::PlaceLimitOrder => true,
             _ => false
         }
     }
@@ -61,7 +61,7 @@ impl InboundMessage {
                 let mut iter = buff.into_iter();
 
                 let symbol = Symbol::from_u8(iter.next().unwrap())
-                    .expect("invlaid symbol");
+                    .expect("invalid symbol");
 
                 let message_type = MessageType::from_u8(iter.next().unwrap())
                     .expect("invalid message num");
@@ -70,7 +70,7 @@ impl InboundMessage {
                     .expect("invalid AskOrBuy");
 
                 let limit_price = match message_type { //TODO: Properly read Decimals
-                    MessageType::PLACE_MARKET_ORDER => Decimal::from(0),
+                    MessageType::PlaceMarketOrder => Decimal::from(0),
                     _ => Decimal::from(500 + rand::thread_rng().gen_range(0..100)),
                 };
 

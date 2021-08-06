@@ -15,23 +15,22 @@ use crate::inbound_msg::{InboundMessage, MessageType};
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 32;
 
-
 struct Client {
     socket: TcpStream,
     client_num: u32
 }
 
-pub struct InboundServer {
+pub struct InboundTcpServer {
     clients: Vec<Client>,
     message_transmitter: Sender<InboundMessage>,
     last_client_num: u32
 }
 
-impl InboundServer {
-    pub fn new() -> (InboundServer, Receiver<InboundMessage>) {
+impl InboundTcpServer {
+    pub fn new() -> (InboundTcpServer, Receiver<InboundMessage>) {
         let (tx, rx) = mpsc::channel::<InboundMessage>();
 
-        (InboundServer {
+        (InboundTcpServer {
             clients: Vec::new(),
             message_transmitter: tx,
             last_client_num: 0
