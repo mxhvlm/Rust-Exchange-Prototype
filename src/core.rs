@@ -1,12 +1,8 @@
 use log::info;
-use std::sync::mpsc::Receiver;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::HashMap;
-use crate::inbound_server::{InboundServer};
+use crate::inbound_server::{InboundServer, InboundMessage};
 use crate::orderbook::Orderbook;
 use crate::symbol::Symbol;
-use crate::inbound_msg::InboundMessage;
 use crate::inbound_http_server::InboundHttpServer;
 use std::io::ErrorKind;
 
@@ -29,7 +25,7 @@ impl ExchangeCore {
     }
 
     pub fn run(mut self) {
-        let (inbound_reciever, mut inbound_server) = InboundHttpServer::new();
+        let (inbound_reciever, inbound_server) = InboundHttpServer::new();
 
         inbound_server.run();
 
@@ -39,7 +35,7 @@ impl ExchangeCore {
                 msg.resp.send(match self.process_inbound_message(&msg.cmd) {
                     true => Ok(format!("Added order: {:?}", &msg.cmd)),
                     false => Err(ErrorKind::InvalidData)
-                });
+                }).unwrap();
             }
         }
     }

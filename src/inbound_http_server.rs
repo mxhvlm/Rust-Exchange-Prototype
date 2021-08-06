@@ -1,6 +1,5 @@
-use crate::inbound_server::{InboundServer, AsyncMessage};
+use crate::inbound_server::{InboundServer, AsyncMessage, InboundMessage};
 use std::sync::mpsc::{Receiver, Sender};
-use crate::inbound_msg::InboundMessage;
 use std::sync::mpsc;
 use log::info;
 use std::net::{TcpListener, TcpStream};
@@ -25,7 +24,7 @@ pub fn handle_connection(mut stream: TcpStream, tx: Sender<AsyncMessage<InboundM
 
     let (msg, rx) = AsyncMessage::new(InboundMessage::get_dummy());
 
-    tx.send(msg);
+    tx.send(msg).unwrap();
 
     let result = match rx.recv().unwrap() {
         Ok(status) => status,
@@ -66,12 +65,12 @@ impl InboundServer for InboundHttpServer {
     }
 }
 
+#[cfg(test)]
 mod http_server_tests {
-    use crate::inbound_http_server::{InboundHttpServer, LOCAL_ADDR};
-    use crate::inbound_server::InboundServer;
+    use crate::inbound_server::{InboundServer, InboundMessage};
     use std::net::TcpStream;
     use std::io::Write;
-    use crate::inbound_msg::InboundMessage;
+    use crate::inbound_http_server::{InboundHttpServer, LOCAL_ADDR};
 
     #[test]
     fn test_recv_handle_msg() {
@@ -80,7 +79,7 @@ mod http_server_tests {
         server.run();
 
         let mut client = TcpStream::connect(LOCAL_ADDR).unwrap();
-        client.write_all("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".as_bytes());
+        client.write_all("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".as_bytes()).unwrap();
 
         let msg = rx.recv().unwrap().cmd;
         assert_eq!(msg, InboundMessage::get_dummy());

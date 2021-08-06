@@ -182,7 +182,7 @@ impl Orderbook {
 #[cfg(test)]
 mod orderbook_tests {
     use super::*;
-    use rand::{Rng, SeedableRng, RngCore};
+    use rand::{SeedableRng, RngCore};
     use std::hash::Hash;
 
     //Wrapper for isolated testing of Orderbook::insert_limit()
