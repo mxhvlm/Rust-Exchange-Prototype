@@ -182,7 +182,7 @@ impl Orderbook {
 #[cfg(test)]
 mod orderbook_tests {
     use super::*;
-    use rand::Rng;
+    use rand::{Rng, SeedableRng, RngCore};
     use std::hash::Hash;
 
     //Wrapper for isolated testing of Orderbook::insert_limit()
@@ -253,22 +253,27 @@ mod orderbook_tests {
         let mut id = 0u64;
         let amount = Decimal::from(50);
 
+        //Change seed used for rng here
+        let mut gen = rand_chacha::ChaCha8Rng::seed_from_u64(39);
+
         //No order has been written yet
         assert_eq!(orderbook.get_best_ask(), None);
         assert_eq!(orderbook.get_best_bid(), None);
 
         //Add a bunch of orders at random prices to ask and bid and save the best ask and bid price
         //for comparison
-        let mut best_ask = Decimal::from(rand::thread_rng().gen_range(0..100) + 512);
-        let mut best_bid = best_ask.clone();
+        let mut best_ask = Decimal::from(-1);
+        let mut best_bid = Decimal::from(-1);
+
         for n in 1..10 {
-            let rand_price = Decimal::from(rand::thread_rng().gen_range(0..100) + 512);
-            if rand_price < best_ask {
+            let rand_price = Decimal::from(gen.next_u32() % 100 + 512);
+            if rand_price < best_ask || best_ask.is_sign_negative() {
                 best_ask = rand_price;
             }
-            if rand_price > best_bid {
+            if rand_price > best_bid || best_bid.is_sign_negative() {
                 best_bid = rand_price;
             }
+
             insert_limit(&mut orderbook,&id, AskOrBid::Ask, &rand_price, &amount);
             id += 1;
             insert_limit(&mut orderbook,&id, AskOrBid::Bid, &rand_price, &amount);
