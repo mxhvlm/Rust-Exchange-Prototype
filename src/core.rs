@@ -30,7 +30,6 @@ impl ExchangeCore {
     pub fn run(mut self) {
         let (inbound_reciever, mut inbound_server) = InboundHttpServer::new();
 
-        let stop_inbound_server = Arc::new(AtomicBool::new(false));
         inbound_server.run();
 
         loop {
