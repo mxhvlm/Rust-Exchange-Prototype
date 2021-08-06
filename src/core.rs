@@ -8,6 +8,7 @@ use crate::orderbook::Orderbook;
 use crate::symbol::Symbol;
 use crate::inbound_msg::InboundMessage;
 use crate::inbound_http_server::InboundHttpServer;
+use std::io::ErrorKind;
 
 pub struct ExchangeCore {
     orderbooks: HashMap<Symbol, Orderbook>,
@@ -34,15 +35,18 @@ impl ExchangeCore {
 
         loop {
             if let Ok(msg) = inbound_reciever.try_recv() {
-                info!("Processing inbound message: {:?}...", msg);
-                self.process_inbound_message(&msg);
+                info!("Processing inbound message: {:?}...", msg.cmd);
+                msg.resp.send(match self.process_inbound_message(&msg.cmd) {
+                    true => Ok(format!("Added order: {:?}", &msg.cmd)),
+                    false => Err(ErrorKind::InvalidData)
+                });
             }
         }
     }
 
-    fn process_inbound_message(&mut self, msg: &InboundMessage) {
-        self.orderbooks.get_mut(&msg.symbol).expect("Orderbook for Symbol not found!")
-            .insert_try_exec_limit(&self.last_order_id, msg.side.clone(), &msg.limit_price, &msg.amount);
+    fn process_inbound_message(&mut self, msg: &InboundMessage) -> bool {
         self.last_order_id += 1;
+        self.orderbooks.get_mut(&msg.symbol).expect("Orderbook for Symbol not found!")
+            .insert_try_exec_limit(&self.last_order_id, msg.side.clone(), &msg.limit_price, &msg.amount)
     }
 }

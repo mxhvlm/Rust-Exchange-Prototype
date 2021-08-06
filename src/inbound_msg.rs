@@ -89,4 +89,14 @@ impl InboundMessage {
             _ => Err(ErrorKind::InvalidData)
         }
     }
+    
+    pub fn get_dummy() -> InboundMessage {
+        InboundMessage {
+            message_type: MessageType::PlaceLimitOrder,
+            symbol: Symbol::BTC,
+            side: AskOrBid::Ask,
+            limit_price: Decimal::from(512),
+            amount: Decimal::from(20)
+        }
+    }
 }

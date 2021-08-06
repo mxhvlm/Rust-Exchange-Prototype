@@ -16,8 +16,20 @@ const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 32;
 
 pub trait InboundServer {
-    fn new() -> (Receiver<InboundMessage>, Self);
+    fn new() -> (Receiver<AsyncMessage<InboundMessage>>, Self);
     fn run(self);
+}
+
+pub struct AsyncMessage<T> {
+    pub cmd: T,
+    pub resp: Sender<Result<String, ErrorKind>>, //TODO: implement custom error type
+}
+
+impl<T> AsyncMessage<T> {
+    pub fn new(msg: T) -> (AsyncMessage<T>, Receiver<Result<String, ErrorKind>>) {
+        let (resp, rx) = mpsc::channel::<Result<String, ErrorKind>>();
+        (AsyncMessage{ cmd: msg, resp}, rx)
+    }
 }
 
 struct Client {
@@ -27,13 +39,13 @@ struct Client {
 
 pub struct InboundTcpServer {
     clients: Vec<Client>,
-    message_transmitter: Sender<InboundMessage>,
+    message_transmitter: Sender<AsyncMessage<InboundMessage>>,
     last_client_num: u32
 }
 
 impl InboundServer for InboundTcpServer {
-    fn new() -> (Receiver<InboundMessage>, Self) {
-        let (tx, rx) = mpsc::channel::<InboundMessage>();
+    fn new() -> (Receiver<AsyncMessage<InboundMessage>>, Self) {
+        let (tx, rx) = mpsc::channel::<AsyncMessage<InboundMessage>>();
 
         (rx, InboundTcpServer {
             clients: Vec::new(),
@@ -75,7 +87,7 @@ impl InboundServer for InboundTcpServer {
                                 match msg {
                                     Err(err) => warn!("Failed to read inbound message: {:?}", err),
                                     Ok(in_msg) => {
-                                        tx.send(in_msg).expect("failed to send msg to rx");
+                                        //tx.send(in_msg).expect("failed to send msg to rx");
                                     }
                                 }
                             },
