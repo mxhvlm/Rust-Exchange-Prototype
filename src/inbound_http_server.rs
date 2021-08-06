@@ -11,7 +11,7 @@ const LOCAL_ADDR: &str = "127.0.0.1:80";
 const REQ_BUFFER_SIZE: usize = 1024;
 
 pub struct InboundHttpServer {
-    pub tx: Sender<AsyncMessage<InboundMessage>>
+    tx: Sender<AsyncMessage<InboundMessage>>
 }
 
 impl InboundHttpServer {
@@ -63,5 +63,28 @@ impl InboundServer for InboundHttpServer {
                 });
             }
         });
+    }
+}
+
+mod http_server_tests {
+    use crate::inbound_http_server::{InboundHttpServer, LOCAL_ADDR};
+    use crate::inbound_server::InboundServer;
+    use std::net::TcpStream;
+    use std::io::Write;
+    use crate::inbound_msg::InboundMessage;
+
+    #[test]
+    fn test_recv_handle_msg() {
+        let (rx, server) = InboundHttpServer::new();
+
+        server.run();
+
+        let mut client = TcpStream::connect(LOCAL_ADDR).unwrap();
+        client.write_all("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".as_bytes());
+
+        let msg = rx.recv().unwrap().cmd;
+        assert_eq!(msg, InboundMessage::get_dummy());
+
+        //TODO: Update test when more server functionality is added
     }
 }

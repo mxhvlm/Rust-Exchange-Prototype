@@ -6,7 +6,7 @@ use std::io::ErrorKind;
 use rand::Rng;
 use log::info;
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct InboundMessage {
     pub message_type: MessageType,
     pub symbol: Symbol,
@@ -15,7 +15,7 @@ pub struct InboundMessage {
     pub amount: Decimal
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum MessageType {
     PlaceLimitOrder = 1,
     DeleteLimitOrder = 2,
