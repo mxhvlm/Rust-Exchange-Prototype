@@ -5,3 +5,4 @@ pub mod orderbook;
 pub mod order;
 pub mod order_matcher;
 pub mod inbound_msg;
+pub mod inbound_http_server;

@@ -15,6 +15,11 @@ use crate::inbound_msg::{InboundMessage, MessageType};
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 32;
 
+pub trait InboundServer {
+    fn new() -> (Receiver<InboundMessage>, Self);
+    fn run(self);
+}
+
 struct Client {
     socket: TcpStream,
     client_num: u32
@@ -26,18 +31,18 @@ pub struct InboundTcpServer {
     last_client_num: u32
 }
 
-impl InboundTcpServer {
-    pub fn new() -> (InboundTcpServer, Receiver<InboundMessage>) {
+impl InboundServer for InboundTcpServer {
+    fn new() -> (Receiver<InboundMessage>, Self) {
         let (tx, rx) = mpsc::channel::<InboundMessage>();
 
-        (InboundTcpServer {
+        (rx, InboundTcpServer {
             clients: Vec::new(),
             message_transmitter: tx,
             last_client_num: 0
-        }, rx)
+        })
     }
 
-    pub fn run(mut self) {
+    fn run(mut self) {
         info!("Starting server on {}", LOCAL);
 
         thread::spawn(move || {
@@ -86,6 +91,5 @@ impl InboundTcpServer {
                 }
             }
         });
-        // sleep(Duration::from_millis(1000));
     }
 }
