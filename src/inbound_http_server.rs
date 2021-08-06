@@ -5,6 +5,8 @@ use log::info;
 use std::net::{TcpListener, TcpStream};
 use std::io::{Read, Write};
 use std::thread;
+use std::collections::{HashMap};
+use std::iter::FromIterator;
 
 const LOCAL_ADDR: &str = "127.0.0.1:80";
 const REQ_BUFFER_SIZE: usize = 1024;
@@ -13,28 +15,54 @@ pub struct InboundHttpServer {
     tx: Sender<AsyncMessage<InboundMessage>>
 }
 
-impl InboundHttpServer {
-
-}
-
-pub fn handle_connection(mut stream: TcpStream, tx: Sender<AsyncMessage<InboundMessage>>) {
+fn handle_connection(mut stream: TcpStream, tx: Sender<AsyncMessage<InboundMessage>>) {
     let mut buffer = [0; REQ_BUFFER_SIZE];
     let bytes_read = stream.read(&mut buffer).unwrap();
-    info!("Handling request: size={}, content:\n {}",bytes_read, String::from_utf8_lossy(&buffer[0..bytes_read]));
+    let buffer = Vec::from(&buffer[0..bytes_read]);
 
-    let (msg, rx) = AsyncMessage::new(InboundMessage::get_dummy());
+    let msg = parse_request(buffer);
+    let response = match msg {
+        Some(msg) => {
+            let (msg, rx) = AsyncMessage::new(msg);
 
-    tx.send(msg).unwrap();
+            tx.send(msg).unwrap();
 
-    let result = match rx.recv().unwrap() {
-        Ok(status) => status,
-        Err(err) => format!("{:?}", err)
+            let result = match rx.recv().unwrap() {
+                Ok(status) => status,
+                Err(err) => format!("{:?}", err)
+            };
+
+            format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", result.len(), result)
+        },
+        None => {
+            format!("HTTP/1.1 400 Bad Request\r\n\r\n")
+        }
     };
-
-    let response = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", result.len(), result);
 
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
+}
+
+fn parse_request(bytes: Vec<u8>) -> Option<InboundMessage> {
+    let request = String::from_utf8_lossy(&bytes[0..bytes.len()]).to_string();
+
+    if request.len() == 0 {
+        return None;
+    }
+
+    info!("Handling request: size={}, content:\n {}", bytes.len(), request);
+    let map: Option<HashMap<String, String>> = request.split("\r\n").next()? //GET line
+        .split("?").skip(1).next()?.split(" ").next()? //Extract params
+        .split("&").into_iter().map(|x| { //Split params
+        let mut split_iter = x.split("="); //Split each key, value
+        let key = split_iter.next()?.to_string();
+        let val = split_iter.next()?.to_string();
+        return Some((key, val));
+    }).collect(); //Collect into hashmap
+
+    info!("parsed request: {:?}", map);
+
+    InboundMessage::from_hashmap(&map?)
 }
 
 impl InboundServer for InboundHttpServer {
@@ -66,24 +94,32 @@ impl InboundServer for InboundHttpServer {
 }
 
 #[cfg(test)]
-mod http_server_tests {
+mod tests {
     use crate::inbound_server::{InboundServer, InboundMessage};
     use std::net::TcpStream;
     use std::io::Write;
-    use crate::inbound_http_server::{InboundHttpServer, LOCAL_ADDR};
+    use crate::inbound_http_server::{InboundHttpServer, LOCAL_ADDR, parse_request, REQ_BUFFER_SIZE};
 
     #[test]
-    fn test_recv_handle_msg() {
-        let (rx, server) = InboundHttpServer::new();
-
-        server.run();
-
-        let mut client = TcpStream::connect(LOCAL_ADDR).unwrap();
-        client.write_all("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".as_bytes()).unwrap();
-
-        let msg = rx.recv().unwrap().cmd;
-        assert_eq!(msg, InboundMessage::get_dummy());
-
-        //TODO: Update test when more server functionality is added
+    fn test_parse_place_limit() {
+        let mut request = format!("GET /api?action={}&symbol={}&side={}&price={}&amount={}\
+         HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n)",
+                                  "place_limit", "BTC", "bid", "1234", "231").into_bytes();
+        parse_request(request);
     }
+
+    //#[test]
+    // fn test_recv_handle_msg() {
+    //     let (rx, server) = InboundHttpServer::new();
+    //
+    //     server.run();
+    //
+    //     let mut client = TcpStream::connect(LOCAL_ADDR).unwrap();
+    //     client.write_all("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".as_bytes()).unwrap();
+    //
+    //     let msg = rx.recv().unwrap().cmd;
+    //     assert_eq!(msg, InboundMessage::get_dummy());
+    //
+    //     //TODO: Update test when more server functionality is added
+    // }
 }
