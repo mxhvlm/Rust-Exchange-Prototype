@@ -30,18 +30,7 @@ fn handle_connection(mut stream: TcpStream, tx: Sender<AsyncMessage<InboundMessa
 
             tx.send(msg).unwrap();
 
-            let result = match rx.recv().unwrap() {
-                Ok(status) => object! {
-                    "status" => "success",
-                    "order_id" => status
-                }
-                .to_string(),
-                Err(err) => object! {
-                    "status" => "failed",
-                    "error" => format!("{:?}", err)
-                }
-                .to_string(),
-            };
+            let result = rx.recv().unwrap();
 
             format!(
                 "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
@@ -75,7 +64,7 @@ fn parse_request(bytes: Vec<u8>) -> Option<InboundMessage> {
         return None;
     }
 
-    info!("Handling request: size={}, content:\n {}", bytes.len(), request);
+    //info!("Handling request: size={}, content:\n {}", bytes.len(), request);
     let map: Option<HashMap<String, String>> = request.split("\r\n").next()? //GET line
         .split("?").skip(1).next()?.split(" ").next()? //Extract params
         .split("&").into_iter().map(|x| { //Split params

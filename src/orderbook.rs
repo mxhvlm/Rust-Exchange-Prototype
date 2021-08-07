@@ -5,6 +5,21 @@ use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
 
 use crate::symbol::{AskOrBid, Symbol};
+use core::fmt;
+
+#[derive(PartialEq, Debug)]
+pub enum InsertLimitResult {
+    Success,
+    PartiallyFilled(Decimal),
+    FullyFilled,
+    OrderDataInvalid
+}
+
+#[derive(PartialEq, Debug)]
+pub enum CancelLimitResult {
+    Success,
+    Failure
+}
 
 struct OrderbookPage {
     pub orders: HashMap<u64, Order>,
@@ -22,6 +37,18 @@ pub struct Orderbook {
 pub struct Order {
     pub id: u64,
     pub unfilled: Decimal,
+}
+
+impl fmt::Display for InsertLimitResult {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl fmt::Display for CancelLimitResult {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 impl OrderbookPage {
@@ -141,20 +168,21 @@ impl Orderbook {
         side: AskOrBid,
         price: &Decimal,
         size: &Decimal,
-    ) -> bool {
+    ) -> InsertLimitResult {
         let order_id = order_id.clone();
         let size = size.clone();
         let price = price.clone();
 
-        if !self.insert_limit(order_id, side, price, size) {
-            return false;
+        if let InsertLimitResult::OrderDataInvalid = self.insert_limit(order_id, side, price, size) {
+            return InsertLimitResult::OrderDataInvalid;
         }
 
-        if self.trade_possible() {
-            info!("Executing trade...");
+        match self.trade_possible() {
+            true => {
+                InsertLimitResult::PartiallyFilled(Decimal::default())
+            },
+            false => InsertLimitResult::Success
         }
-
-        true
     }
 
     fn insert_limit(
@@ -163,14 +191,14 @@ impl Orderbook {
         side: AskOrBid,
         price: Decimal,
         size: Decimal,
-    ) -> bool {
+    ) -> InsertLimitResult {
         if price <= Decimal::zero() || size <= Decimal::zero() {
-            return false;
+            return InsertLimitResult::OrderDataInvalid;
         }
 
         //Return false if an order with the same id is already inserted into orderbook
         if self.orders_index.contains_key(&order_id) {
-            return false;
+            return InsertLimitResult::OrderDataInvalid;
         }
 
         let order = Order {
@@ -196,10 +224,10 @@ impl Orderbook {
         info!("Inserted order {} at price {}", order_id, price);
         self.log_best_ask_bid();
 
-        true
+        InsertLimitResult::Success
     }
 
-    pub fn remove_limit(&mut self, order_id: &u64) -> bool {
+    pub fn cancel_limit(&mut self, order_id: &u64) -> bool {
         if !self.orders_index.contains_key(order_id) {
             return false;
         }
@@ -223,7 +251,7 @@ mod orderbook_tests {
         side: AskOrBid,
         price: &Decimal,
         size: &Decimal,
-    ) -> bool {
+    ) -> InsertLimitResult {
         let order_id = order_id.clone();
         let size = size.clone();
         let price = price.clone();
@@ -260,7 +288,7 @@ mod orderbook_tests {
     }
 
     #[test]
-    fn test_orderbook_add_limit() {
+    fn test_orderbook_insert_limit() {
         let mut orderbook = Orderbook::new(Symbol::BTC);
         let mut id = 16u64;
         let price = Decimal::from(100);
@@ -269,7 +297,7 @@ mod orderbook_tests {
         //Adding limit order with an unused order_id
         assert_eq!(
             insert_limit(&mut orderbook, &id, AskOrBid::Ask, &price, &unfilled),
-            true
+            InsertLimitResult::Success
         );
 
         //Check if order got written into the BTree
@@ -291,14 +319,14 @@ mod orderbook_tests {
         //Adding an order with the same order_id twice shouldn't be possible.
         assert_eq!(
             insert_limit(&mut orderbook, &id, AskOrBid::Ask, &price, &unfilled),
-            false
+            InsertLimitResult::OrderDataInvalid
         );
 
         //Check bid side (Don't hanve to check indicies since there is only one HashMap
         id += 1;
         assert_eq!(
             insert_limit(&mut orderbook, &id, AskOrBid::Bid, &price, &unfilled),
-            true
+            InsertLimitResult::Success
         );
         assert_eq!(
             orderbook
@@ -322,7 +350,7 @@ mod orderbook_tests {
                 &Decimal::from(0),
                 &unfilled
             ),
-            false
+            InsertLimitResult::OrderDataInvalid
         );
         id += 1;
         assert_eq!(
@@ -333,7 +361,7 @@ mod orderbook_tests {
                 &Decimal::from(-1),
                 &unfilled
             ),
-            false
+            InsertLimitResult::OrderDataInvalid
         );
         id += 1;
         assert_eq!(
@@ -344,7 +372,7 @@ mod orderbook_tests {
                 &price,
                 &Decimal::from(-1)
             ),
-            false
+            InsertLimitResult::OrderDataInvalid
         );
         id += 1;
         assert_eq!(
@@ -355,7 +383,7 @@ mod orderbook_tests {
                 &price,
                 &Decimal::from(0)
             ),
-            false
+            InsertLimitResult::OrderDataInvalid
         );
     }
 
@@ -518,10 +546,10 @@ mod orderbook_tests {
     }
 
     #[test]
-    fn test_remove_limit() {
+    fn test_cancel_limit() {
         let mut orderbook = Orderbook::new(Symbol::BTC);
 
-        assert_eq!(orderbook.remove_limit(&0), false);
+        assert_eq!(orderbook.cancel_limit(&0), false);
         insert_limit(
             &mut orderbook,
             &0,
@@ -530,7 +558,7 @@ mod orderbook_tests {
             &Decimal::from(20),
         );
         //Check if you can remove order
-        assert_eq!(orderbook.remove_limit(&0), true);
+        assert_eq!(orderbook.cancel_limit(&0), true);
         assert_eq!(orderbook.get_best_bid(), None);
     }
 }

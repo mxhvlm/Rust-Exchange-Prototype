@@ -17,12 +17,12 @@ pub trait InboundServer {
 
 pub struct AsyncMessage<T> {
     pub cmd: T,
-    pub resp: Sender<Result<String, ErrorKind>>, //TODO: implement custom error type
+    pub resp: Sender<String>,
 }
 
 impl<T> AsyncMessage<T> {
-    pub fn new(msg: T) -> (AsyncMessage<T>, Receiver<Result<String, ErrorKind>>) {
-        let (resp, rx) = mpsc::channel::<Result<String, ErrorKind>>();
+    pub fn new(msg: T) -> (AsyncMessage<T>, Receiver<String>) {
+        let (resp, rx) = mpsc::channel::<String>();
         (AsyncMessage { cmd: msg, resp }, rx)
     }
 }
@@ -40,14 +40,14 @@ pub struct InboundMessage {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum MessageType {
     PlaceLimitOrder = 1,
-    DeleteLimitOrder = 2,
+    CancelLimitOrder = 2,
     PlaceMarketOrder = 3,
 }
 
 impl MessageType {
     pub(crate) fn has_amount(&self) -> bool {
         match self {
-            MessageType::DeleteLimitOrder => false,
+            MessageType::CancelLimitOrder => false,
             _ => true,
         }
     }
@@ -61,7 +61,7 @@ impl MessageType {
 
     pub fn has_order_id(&self) -> bool {
         match self {
-            MessageType::DeleteLimitOrder => true,
+            MessageType::CancelLimitOrder => true,
             _ => false,
         }
     }
@@ -69,7 +69,7 @@ impl MessageType {
     pub fn from_string(value: &String) -> Option<MessageType> {
         match value.to_lowercase().as_str() {
             "place_limit" => Some(MessageType::PlaceLimitOrder),
-            "remove_limit" => Some(MessageType::DeleteLimitOrder),
+            "cancel_limit" => Some(MessageType::CancelLimitOrder),
             "place_market" => Some(MessageType::PlaceMarketOrder),
             _ => None,
         }
