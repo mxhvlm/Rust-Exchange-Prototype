@@ -4,3 +4,6 @@ pub mod inbound_server;
 pub mod order_matcher;
 pub mod orderbook;
 pub mod symbol;
+
+pub type OrderId = u64;
+

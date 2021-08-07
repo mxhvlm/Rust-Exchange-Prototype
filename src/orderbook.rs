@@ -5,6 +5,8 @@ use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
 
 use crate::symbol::{AskOrBid, Symbol};
+use crate::OrderId;
+
 use core::fmt;
 
 #[derive(PartialEq, Debug)]
@@ -22,7 +24,7 @@ pub enum CancelLimitResult {
 }
 
 struct OrderbookPage {
-    pub orders: HashMap<u64, Order>,
+    pub orders: HashMap<OrderId, Order>,
     pub amount: Decimal,
 }
 
@@ -30,12 +32,12 @@ pub struct Orderbook {
     symbol: Symbol,
     orders_ask: BTreeMap<Decimal, OrderbookPage>,
     orders_bid: BTreeMap<Decimal, OrderbookPage>,
-    orders_index: HashMap<u64, Decimal>,
+    orders_index: HashMap<OrderId, Decimal>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Order {
-    pub id: u64,
+    pub id: OrderId,
     pub unfilled: Decimal,
 }
 
@@ -64,7 +66,7 @@ impl fmt::Display for CancelLimitResult {
 
 impl OrderbookPage {
     fn new(order: Order) -> OrderbookPage {
-        let mut orders = HashMap::<u64, Order>::new();
+        let mut orders = HashMap::<OrderId, Order>::new();
         let amount = order.unfilled;
         orders.insert(order.id, order.clone());
         OrderbookPage { orders, amount }
@@ -77,7 +79,7 @@ impl Orderbook {
             symbol,
             orders_ask: BTreeMap::<Decimal, OrderbookPage>::new(),
             orders_bid: BTreeMap::<Decimal, OrderbookPage>::new(),
-            orders_index: HashMap::<u64, Decimal>::new(),
+            orders_index: HashMap::<OrderId, Decimal>::new(),
         }
     }
 
@@ -89,7 +91,7 @@ impl Orderbook {
         self.orders_bid.iter().rev().next().map(|(price, _)| *price)
     }
 
-    pub fn contains_order(&self, order_id: &u64) -> bool {
+    pub fn contains_order(&self, order_id: &OrderId) -> bool {
         self.orders_index.contains_key(order_id)
     }
 
@@ -117,7 +119,7 @@ impl Orderbook {
         None
     }
 
-    fn get_order(&self, order_id: &u64) -> Option<&Order> {
+    fn get_order(&self, order_id: &OrderId) -> Option<&Order> {
         let price = self.orders_index.get(order_id);
 
         if price.is_none() {
@@ -141,7 +143,7 @@ impl Orderbook {
         Some(order.unwrap())
     }
 
-    /*pub fn get_unfilled(&self, order_id: &u64) -> Option<Decimal> {
+    /*pub fn get_unfilled(&self, order_id: &OrderId) -> Option<Decimal> {
         match self.contains_order(order_id) {
             true => {
                 let page = self.orders_index.
@@ -175,7 +177,7 @@ impl Orderbook {
 
     pub fn insert_try_exec_limit(
         &mut self,
-        order_id: &u64,
+        order_id: &OrderId,
         side: AskOrBid,
         price: &Decimal,
         size: &Decimal,
@@ -198,7 +200,7 @@ impl Orderbook {
 
     fn insert_limit(
         &mut self,
-        order_id: u64,
+        order_id: OrderId,
         side: AskOrBid,
         price: Decimal,
         size: Decimal,
@@ -238,7 +240,7 @@ impl Orderbook {
         InsertLimitResult::Success
     }
 
-    pub fn cancel_limit(&mut self, order_id: &u64) -> CancelLimitResult {
+    pub fn cancel_limit(&mut self, order_id: &OrderId) -> CancelLimitResult {
         if !self.orders_index.contains_key(order_id) {
             return CancelLimitResult::OrderIdNotFound;
         }
@@ -258,7 +260,7 @@ mod orderbook_tests {
     //Wrapper for isolated testing of Orderbook::insert_limit()
     fn insert_limit(
         orderbook: &mut Orderbook,
-        order_id: &u64,
+        order_id: &OrderId,
         side: AskOrBid,
         price: &Decimal,
         size: &Decimal,

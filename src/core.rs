@@ -9,11 +9,13 @@ use crate::inbound_http_server::InboundHttpServer;
 use crate::inbound_server::{InboundMessage, InboundServer, MessageType};
 use crate::orderbook::{Orderbook, InsertLimitResult};
 use crate::symbol::Symbol;
+use crate::OrderId;
+
 
 pub struct ExchangeCore {
     orderbooks: HashMap<Symbol, Orderbook>,
-    orderbook_id_lookup: HashMap<u64, Symbol>,
-    last_order_id: u64,
+    orderbook_id_lookup: HashMap<OrderId, Symbol>,
+    last_order_id: OrderId,
 }
 
 impl ExchangeCore {
@@ -26,7 +28,7 @@ impl ExchangeCore {
 
         ExchangeCore {
             orderbooks,
-            last_order_id: 0u64,
+            last_order_id: 0,
             orderbook_id_lookup
         }
     }
