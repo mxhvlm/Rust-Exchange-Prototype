@@ -377,7 +377,7 @@ mod orderbook_tests {
         let mut best_ask = Decimal::from(-1);
         let mut best_bid = Decimal::from(-1);
 
-        for n in 1..10 {
+        for _n in 1..10 {
             let rand_price = Decimal::from(gen.next_u32() % 100 + 512);
             if rand_price < best_ask || best_ask.is_sign_negative() {
                 best_ask = rand_price;

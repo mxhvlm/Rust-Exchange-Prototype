@@ -1,8 +1,8 @@
-use core::num::FpCategory::Infinite;
+
 use std::collections::HashMap;
 use std::io::ErrorKind;
 
-use json::object;
+
 use log::{error, info};
 
 use crate::inbound_http_server::InboundHttpServer;
@@ -55,7 +55,7 @@ impl ExchangeCore {
     fn process_inbound_message(&mut self, msg: &mut InboundMessage) -> bool {
         match &msg.symbol {
             Some(symbol) => {
-                let mut orderbook = self
+                let orderbook = self
                     .orderbooks
                     .get_mut(symbol)
                     .expect("Orderbook for symbol not found!");

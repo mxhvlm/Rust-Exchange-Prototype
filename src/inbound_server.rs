@@ -95,7 +95,7 @@ fn opt_from_str_opt<T: FromStr>(value: Option<&String>) -> Option<T> {
         None => None,
         Some(value) => match T::from_str(value) {
             Ok(decimal) => Some(decimal),
-            Err(err) => None,
+            Err(_err) => None,
         },
     }
 }

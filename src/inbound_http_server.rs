@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::iter::FromIterator;
+
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -120,17 +120,14 @@ impl InboundServer for InboundHttpServer {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
-    use std::net::TcpStream;
-
     use crate::inbound_http_server::{
-        parse_request, InboundHttpServer, LOCAL_ADDR, REQ_BUFFER_SIZE,
+        parse_request,
     };
-    use crate::inbound_server::{InboundMessage, InboundServer};
+    use crate::inbound_server::{InboundServer};
 
     #[test]
     fn test_parse_place_limit() {
-        let mut request = format!(
+        let request = format!(
             "GET /api?action={}&symbol={}&side={}&price={}&amount={}\
             HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n)",
             "place_limit", "BTC", "bid", "1234", "231"
