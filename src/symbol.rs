@@ -13,7 +13,7 @@ pub enum Symbol {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum AskOrBid {
     Ask = 0,
-    Bid = 1
+    Bid = 1,
 }
 
 impl FromStr for AskOrBid {
@@ -23,7 +23,7 @@ impl FromStr for AskOrBid {
         match s.to_lowercase().as_str() {
             "ask" => Ok(AskOrBid::Ask),
             "bid" => Ok(AskOrBid::Bid),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
@@ -35,7 +35,7 @@ impl FromStr for Symbol {
         match s.to_lowercase().as_str() {
             "btc" => Ok(Symbol::BTC),
             "eth" => Ok(Symbol::ETH),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }

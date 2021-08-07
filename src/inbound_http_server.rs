@@ -1,19 +1,21 @@
-use crate::inbound_server::{InboundServer, AsyncMessage, InboundMessage};
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::mpsc;
-use log::info;
-use std::net::{TcpListener, TcpStream};
+use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::thread;
-use std::collections::{HashMap};
 use std::iter::FromIterator;
+use std::net::{TcpListener, TcpStream};
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+use std::thread;
+
 use json::object;
+use log::info;
+
+use crate::inbound_server::{AsyncMessage, InboundMessage, InboundServer};
 
 const LOCAL_ADDR: &str = "127.0.0.1:80";
 const REQ_BUFFER_SIZE: usize = 1024;
 
 pub struct InboundHttpServer {
-    tx: Sender<AsyncMessage<InboundMessage>>
+    tx: Sender<AsyncMessage<InboundMessage>>,
 }
 
 fn handle_connection(mut stream: TcpStream, tx: Sender<AsyncMessage<InboundMessage>>) {
@@ -32,22 +34,33 @@ fn handle_connection(mut stream: TcpStream, tx: Sender<AsyncMessage<InboundMessa
                 Ok(status) => object! {
                     "status" => "success",
                     "order_id" => status
-                }.to_string(),
+                }
+                .to_string(),
                 Err(err) => object! {
                     "status" => "failed",
                     "error" => format!("{:?}", err)
-                }.to_string()
+                }
+                .to_string(),
             };
 
-            format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", result.len(), result)
-        },
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
+                result.len(),
+                result
+            )
+        }
         None => {
             let result = object! {
-                    "status" => "failed",
-                    "error" => "bad request"
-                }.to_string();
+                "status" => "failed",
+                "error" => "bad request"
+            }
+            .to_string();
 
-            format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", result.len(), result)
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
+                result.len(),
+                result
+            )
         }
     };
 
@@ -82,7 +95,7 @@ impl InboundServer for InboundHttpServer {
         info!("Initializing inbound http server...");
         let (tx, rx) = mpsc::channel::<AsyncMessage<InboundMessage>>();
 
-        (rx, InboundHttpServer {tx})
+        (rx, InboundHttpServer { tx })
     }
 
     fn run(self) {
@@ -91,8 +104,8 @@ impl InboundServer for InboundHttpServer {
         let tx = self.tx.clone();
 
         thread::spawn(move || {
-            let listener = TcpListener::bind(LOCAL_ADDR).expect("Unable to bind to \
-            TcpListener!");
+            let listener = TcpListener::bind(LOCAL_ADDR).expect(
+                "Unable to bind to TcpListener!", );
 
             for stream in listener.incoming() {
                 let stream = stream.unwrap();
@@ -107,16 +120,22 @@ impl InboundServer for InboundHttpServer {
 
 #[cfg(test)]
 mod tests {
-    use crate::inbound_server::{InboundServer, InboundMessage};
-    use std::net::TcpStream;
     use std::io::Write;
-    use crate::inbound_http_server::{InboundHttpServer, LOCAL_ADDR, parse_request, REQ_BUFFER_SIZE};
+    use std::net::TcpStream;
+
+    use crate::inbound_http_server::{
+        parse_request, InboundHttpServer, LOCAL_ADDR, REQ_BUFFER_SIZE,
+    };
+    use crate::inbound_server::{InboundMessage, InboundServer};
 
     #[test]
     fn test_parse_place_limit() {
-        let mut request = format!("GET /api?action={}&symbol={}&side={}&price={}&amount={}\
-         HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n)",
-                                  "place_limit", "BTC", "bid", "1234", "231").into_bytes();
+        let mut request = format!(
+            "GET /api?action={}&symbol={}&side={}&price={}&amount={}\
+            HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n)",
+            "place_limit", "BTC", "bid", "1234", "231"
+        )
+        .into_bytes();
         parse_request(request);
     }
 
