@@ -18,7 +18,7 @@ pub enum InsertLimitResult {
 #[derive(PartialEq, Debug)]
 pub enum CancelLimitResult {
     Success,
-    Failure
+    OrderIdNotFound
 }
 
 struct OrderbookPage {
@@ -37,6 +37,17 @@ pub struct Orderbook {
 pub struct Order {
     pub id: u64,
     pub unfilled: Decimal,
+}
+
+impl InsertLimitResult {
+    pub fn is_success(&self) -> bool {
+        match self {
+            InsertLimitResult::Success => true,
+            InsertLimitResult::PartiallyFilled(_) => true,
+            InsertLimitResult::FullyFilled => true,
+            InsertLimitResult::OrderDataInvalid => false,
+        }
+    }
 }
 
 impl fmt::Display for InsertLimitResult {
@@ -227,12 +238,12 @@ impl Orderbook {
         InsertLimitResult::Success
     }
 
-    pub fn cancel_limit(&mut self, order_id: &u64) -> bool {
+    pub fn cancel_limit(&mut self, order_id: &u64) -> CancelLimitResult {
         if !self.orders_index.contains_key(order_id) {
-            return false;
+            return CancelLimitResult::OrderIdNotFound;
         }
 
-        true
+        CancelLimitResult::Success
     }
 }
 
@@ -549,7 +560,7 @@ mod orderbook_tests {
     fn test_cancel_limit() {
         let mut orderbook = Orderbook::new(Symbol::BTC);
 
-        assert_eq!(orderbook.cancel_limit(&0), false);
+        assert_eq!(orderbook.cancel_limit(&0), CancelLimitResult::OrderIdNotFound);
         insert_limit(
             &mut orderbook,
             &0,
@@ -558,7 +569,7 @@ mod orderbook_tests {
             &Decimal::from(20),
         );
         //Check if you can remove order
-        assert_eq!(orderbook.cancel_limit(&0), true);
+        assert_eq!(orderbook.cancel_limit(&0), CancelLimitResult::Success);
         assert_eq!(orderbook.get_best_bid(), None);
     }
 }
