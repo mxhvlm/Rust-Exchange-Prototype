@@ -7,6 +7,7 @@ use std::io::{Read, Write};
 use std::thread;
 use std::collections::{HashMap};
 use std::iter::FromIterator;
+use json::object;
 
 const LOCAL_ADDR: &str = "127.0.0.1:80";
 const REQ_BUFFER_SIZE: usize = 1024;
@@ -28,14 +29,25 @@ fn handle_connection(mut stream: TcpStream, tx: Sender<AsyncMessage<InboundMessa
             tx.send(msg).unwrap();
 
             let result = match rx.recv().unwrap() {
-                Ok(status) => status,
-                Err(err) => format!("{:?}", err)
+                Ok(status) => object! {
+                    "status" => "success",
+                    "order_id" => status
+                }.to_string(),
+                Err(err) => object! {
+                    "status" => "failed",
+                    "error" => format!("{:?}", err)
+                }.to_string()
             };
 
             format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", result.len(), result)
         },
         None => {
-            format!("HTTP/1.1 400 Bad Request\r\n\r\n")
+            let result = object! {
+                    "status" => "failed",
+                    "error" => "bad request"
+                }.to_string();
+
+            format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", result.len(), result)
         }
     };
 

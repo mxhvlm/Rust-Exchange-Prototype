@@ -6,6 +6,7 @@ use crate::symbol::Symbol;
 use crate::inbound_http_server::InboundHttpServer;
 use std::io::ErrorKind;
 use core::num::FpCategory::Infinite;
+use json::object;
 
 pub struct ExchangeCore {
     orderbooks: HashMap<Symbol, Orderbook>,
@@ -32,11 +33,12 @@ impl ExchangeCore {
 
         loop {
             if let Ok(msg) = inbound_reciever.try_recv() {
-                info!("Processing inbound message: {:?}...", msg.cmd);
-                msg.resp.send(match self.process_inbound_message(&msg.cmd) {
-                    true => Ok(format!("Added limit order: {:?}", &msg.cmd)),
+                let mut cmd = msg.cmd.clone();
+                info!("Processing inbound message: {:?}...", &cmd);
+                msg.resp.send(match self.process_inbound_message(&mut cmd) {
+                    true => Ok(format!("{}", cmd.order_id.unwrap())),
                     false => {
-                        error!("Invalid limit order: {:?}", &msg.cmd);
+                        error!("Invalid limit order: {:?}", &cmd);
                         Err(ErrorKind::InvalidData)
                     }
                 }).unwrap();
@@ -44,24 +46,37 @@ impl ExchangeCore {
         }
     }
 
-    fn process_inbound_message(&mut self, msg: &InboundMessage) -> bool {
-        match msg.message_type {
-            MessageType::PlaceLimitOrder => {
-                //if msg.
+    //TODO: find some other way of returning the msg.order_id
+    //TODO: handle the way msg.symbol gets checked properly
+    fn process_inbound_message(&mut self, msg: &mut InboundMessage) -> bool {
+        match &msg.symbol {
+            Some(symbol) => {
+                let mut orderbook = self.orderbooks.get_mut(symbol).expect("Orderbook for symbol not found!");
+                match msg.message_type {
+                    MessageType::PlaceLimitOrder => {
+                        match (msg.limit_price, msg.amount, msg.side.clone()) {
+                            (Some(price), Some(amount), Some(side)) => {
+                                self.last_order_id += 1;
+                                msg.order_id = Some(self.last_order_id);
+                                orderbook.insert_try_exec_limit(&self.last_order_id, side, &price, &amount)
+                            }
+                            _ => false
+                        }
 
-                self.last_order_id += 1;
-                //TODO: Dirty workaround using default() == -1 in order to let insert_try_exec() fail
-                self.orderbooks.get_mut(&msg.symbol).expect("Orderbook for Symbol not found!")
-                    .insert_try_exec_limit(&self.last_order_id, msg.side.clone(),
-                                           &msg.limit_price.unwrap(),
-                                           &msg.amount.unwrap())
-            }
-            MessageType::DeleteLimitOrder => {
-                false
-            }
-            MessageType::PlaceMarketOrder => {
-                false
-            }
+                    }
+                    MessageType::DeleteLimitOrder => {
+                        match msg.order_id {
+                            Some(id) => orderbook.remove_limit(&id),
+                            _ => false
+                        }
+
+                    }
+                    MessageType::PlaceMarketOrder => {
+                        false
+                    }
+                }
+            },
+            None => false
         }
     }
 }

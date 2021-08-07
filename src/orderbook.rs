@@ -174,8 +174,13 @@ impl Orderbook {
         true
     }
 
-    fn remove_limit(&mut self, order_id: &u64) -> bool {
-        false
+    pub fn remove_limit(&mut self, order_id: &u64) -> bool {
+        if !self.orders_index.contains_key(order_id) {
+            return false;
+        }
+
+
+        true
     }
 }
 
