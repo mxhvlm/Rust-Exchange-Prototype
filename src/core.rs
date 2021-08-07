@@ -12,7 +12,7 @@ use crate::symbol::Symbol;
 
 pub struct ExchangeCore {
     orderbooks: HashMap<Symbol, Orderbook>,
-    orderbook_id_lookup: HashMap<u64, Orderbook>,
+    orderbook_id_lookup: HashMap<u64, Symbol>,
     last_order_id: u64,
 }
 
@@ -47,8 +47,7 @@ impl ExchangeCore {
         }
     }
 
-    //TODO: find some other way of returning the msg.order_id
-    //TODO: handle the way msg.symbol gets checked properly
+    //TODO: When implementing multithreading, we need to be able to route orderflow based on symbol as quickly as possible
     fn process_inbound_message(&mut self, msg: &mut InboundMessage) -> String {
         match msg.message_type {
             MessageType::PlaceLimitOrder => {
@@ -58,22 +57,31 @@ impl ExchangeCore {
                             .orderbooks
                             .get_mut(symbol)
                             .expect("Orderbook for symbol not found!");
+
                         self.last_order_id += 1;
-                        msg.order_id = Some(self.last_order_id);
-                        orderbook.insert_try_exec_limit(
+
+                        let result = orderbook.insert_try_exec_limit(
                             &self.last_order_id,
                             side.clone(),
                             &price,
                             &amount,
-                        ).to_string()
+                        );
+
+                        if result.is_success() {
+                            self.orderbook_id_lookup.insert(self.last_order_id, symbol.clone());
+                        }
+
+                        result.to_string()
                     },
                     _ => "invalid data!".to_string(),
                 }
             }
             MessageType::CancelLimitOrder => match msg.order_id {
                 Some(id) => {
-                    match self.orderbook_id_lookup.get_mut(&id){
-                        Some(orderbook) => orderbook.cancel_limit(&id).to_string(),
+                    match self.orderbook_id_lookup.get(&id) {
+                        Some(symbol) => {
+                            self.orderbooks.get_mut(symbol).unwrap().cancel_limit(&id).to_string()
+                        },
                         None => "invalid id!".to_string()
                     }
                 },
