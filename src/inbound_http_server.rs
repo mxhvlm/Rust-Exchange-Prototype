@@ -64,6 +64,7 @@ fn parse_request(bytes: Vec<u8>) -> Option<InboundMessage> {
         return None;
     }
 
+    //TODO: Stick to spec
     //info!("Handling request: size={}, content:\n {}", bytes.len(), request);
     let map: Option<HashMap<String, String>> = request.split("\r\n").next()? //GET line
         .split("?").skip(1).next()?.split(" ").next()? //Extract params

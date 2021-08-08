@@ -102,11 +102,28 @@ impl fmt::Display for CancelLimitResult {
 }
 
 impl OrderbookPage {
-    fn new(order: Order) -> OrderbookPage {
+    fn new(order: &Order) -> OrderbookPage {
         let mut orders = HashMap::<OrderId, Order>::new();
         let amount = order.unfilled;
         orders.insert(order.id, order.clone());
         OrderbookPage { orders, amount }
+    }
+
+    fn remove(&mut self, order_id: &OrderId) -> Option<Order> {
+        if let Some(removed) = self.orders.remove(order_id) {
+            self.amount -= removed.unfilled;
+            return Some(removed);
+        }
+        None
+    }
+
+    fn get(&self, order_id: &OrderId) -> Option<&Order> {
+        self.orders.get(order_id)
+    }
+
+    fn insert(&mut self, order: &Order) {
+        self.orders.insert(order.id, order.clone());
+        self.amount += order.unfilled;
     }
 }
 
@@ -135,30 +152,35 @@ impl Orderbook {
     /**
     Returns None if either no orders are in the orderbook or if the orderbook is in an inconsistent state
      */
-    fn get_orderbook_side_for_price(
+    fn get_side_for_price(
         &self,
         price: &Decimal,
-    ) -> Option<&BTreeMap<Decimal, OrderbookPage>> {
+    ) -> Option<AskOrBid> {
         //Orderbook is in an inconsistent state eg. get_best_buy() >= get_best_bid()
         if self.trade_possible() {
             return None;
         }
         if let Some(best_ask) = self.get_best_ask() {
             if *price >= best_ask {
-                return Some(&self.orders_ask);
+                return Some(AskOrBid::Ask);
             }
         }
         if let Some(best_bid) = self.get_best_bid() {
             if *price <= best_bid {
-                return Some(&self.orders_bid);
+                return Some(AskOrBid::Bid);
             }
         }
         None
     }
 
-    fn get_order(&self, order_id: &OrderId) -> Option<&Order> {
+    fn get_order(&mut self, order_id: &OrderId) -> Option<&Order> {
         if let Some(price) = self.orders_index.get(order_id) {
-            if let Some(orderbook) = self.get_orderbook_side_for_price(&price) {
+            if let Some(side) = self.get_side_for_price(&price) {
+                let orderbook = match side {
+                    AskOrBid::Ask => &mut self.orders_ask,
+                    AskOrBid::Bid => &mut self.orders_bid,
+                };
+
                 if let Some(order_page) = orderbook.get(&price) {
                     return order_page.orders.get(order_id);
                 }
@@ -251,10 +273,9 @@ impl Orderbook {
         orderbook
             .entry(price)
             .and_modify(|page| {
-                page.amount += order.unfilled;
-                page.orders.insert(order_id, order.clone());
+                page.insert(&order)
             })
-            .or_insert_with(|| OrderbookPage::new(order));
+            .or_insert_with(|| OrderbookPage::new(&order));
 
         self.orders_index.insert(order_id, price);
 
@@ -265,11 +286,25 @@ impl Orderbook {
     }
 
     pub fn cancel_limit(&mut self, order_id: &OrderId) -> CancelLimitResult {
-        if !self.orders_index.contains_key(order_id) {
-            return CancelLimitResult::OrderIdNotFound;
+        if let Some(price) = self.orders_index.get(order_id) {
+            if let Some(side) = self.get_side_for_price(price) {
+                let orderbook = match side {
+                    AskOrBid::Ask => &mut self.orders_ask,
+                    AskOrBid::Bid => &mut self.orders_bid,
+                };
+                if let Some(orderbook_page) = orderbook.get_mut(price) {
+                    if let Some(removed) = orderbook_page.remove(order_id) {
+                        if orderbook_page.amount == Decimal::from(0) {
+                            orderbook.remove(price);
+                        }
+                        return CancelLimitResult::Success
+                    }
+                }
+            } else {
+                panic!("cancel_limit called in an inconsistent state!")
+            }
         }
-
-        CancelLimitResult::Success
+        CancelLimitResult::OrderIdNotFound
     }
 }
 
@@ -296,20 +331,13 @@ mod orderbook_tests {
         orderbook.insert_limit(order_id, side, price, size)
     }
 
-    fn btree_keys_match<T: Eq + Hash + std::cmp::Ord, U, V>(
-        map1: &BTreeMap<T, U>,
-        map2: &BTreeMap<T, V>,
-    ) -> bool {
-        map1.len() == map2.len() && map1.keys().all(|k| map2.contains_key(k))
-    }
-
     #[test]
     fn test_new_page() {
         let order = Order {
             id: 0,
             unfilled: Decimal::from(10),
         };
-        let page = OrderbookPage::new(order.clone());
+        let page = OrderbookPage::new(&order);
 
         assert_eq!(page.orders.len(), 1);
         assert_eq!(
@@ -322,6 +350,24 @@ mod orderbook_tests {
         );
 
         assert_eq!(order.unfilled, page.amount);
+    }
+
+    #[test]
+    fn test_page_remove_order() {
+        let order1_amount = Decimal::from(10);
+        let order2_amount = Decimal::from(3244);
+
+        let order = Order {
+            id: 0,
+            unfilled: order1_amount,
+        };
+        let mut page = OrderbookPage::new(&order);
+        page.insert(&Order{ id: 1, unfilled: order2_amount});
+
+        let removed_order = page.remove(&0);
+        assert_eq!(removed_order, Some(order));
+        assert_eq!(page.amount, order2_amount);
+        assert_eq!(page.remove(&0), None);
     }
 
     #[test]
@@ -523,7 +569,7 @@ mod orderbook_tests {
 
         //No orders in orderbook
         assert_eq!(
-            orderbook.get_orderbook_side_for_price(&price_ask).is_none(),
+            orderbook.get_side_for_price(&price_ask).is_none(),
             true
         );
 
@@ -532,39 +578,27 @@ mod orderbook_tests {
 
         assert_eq!(
             orderbook
-                .get_orderbook_side_for_price(&(price_ask - Decimal::from(1)))
+                .get_side_for_price(&(price_ask - Decimal::from(1)))
                 .is_none(),
             true
         );
-        assert_eq!(
-            btree_keys_match(
-                orderbook.get_orderbook_side_for_price(&price_ask).unwrap(),
-                &orderbook.orders_ask
-            ),
-            true
-        );
+        assert_eq!(orderbook.get_side_for_price(&price_ask).unwrap(), AskOrBid::Ask);
 
         //Check for bids
         insert_limit(&mut orderbook, &1, AskOrBid::Bid, &price_bid, &amount);
 
         assert_eq!(
             orderbook
-                .get_orderbook_side_for_price(&(price_bid + Decimal::from(1)))
+                .get_side_for_price(&(price_bid + Decimal::from(1)))
                 .is_none(),
             true
         );
-        assert_eq!(
-            btree_keys_match(
-                orderbook.get_orderbook_side_for_price(&price_bid).unwrap(),
-                &orderbook.orders_bid
-            ),
-            true
-        );
+        assert_eq!(orderbook.get_side_for_price(&price_bid).unwrap(), AskOrBid::Bid);
 
         //Bring orderbook into inconsistent state
         insert_limit(&mut orderbook, &2, AskOrBid::Bid, &price_ask, &amount);
         assert_eq!(
-            orderbook.get_orderbook_side_for_price(&price_ask).is_none(),
+            orderbook.get_side_for_price(&price_ask).is_none(),
             true
         );
     }
@@ -596,7 +630,7 @@ mod orderbook_tests {
             &Decimal::from(20),
             &Decimal::from(20),
         );
-        //Check if you can remove order
+
         assert_eq!(orderbook.cancel_limit(&0), CancelLimitResult::Success);
         assert_eq!(orderbook.get_best_bid(), None);
     }

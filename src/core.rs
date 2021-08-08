@@ -7,7 +7,7 @@ use log::{error, info};
 
 use crate::inbound_http_server::InboundHttpServer;
 use crate::inbound_server::{InboundMessage, InboundServer, MessageType};
-use crate::orderbook::{Orderbook, InsertLimitResult};
+use crate::orderbook::{Orderbook, InsertLimitResult, CancelLimitResult};
 use crate::symbol::Symbol;
 use crate::OrderId;
 use json::JsonValue;
@@ -81,9 +81,13 @@ impl ExchangeCore {
             }
             MessageType::CancelLimitOrder => match msg.order_id {
                 Some(id) => {
-                    match self.orderbook_id_lookup.get(&id) {
+                    match self.orderbook_id_lookup.get_mut(&id) {
                         Some(symbol) => {
-                            self.orderbooks.get_mut(symbol).unwrap().cancel_limit(&id).to_string()
+                            let result = self.orderbooks.get_mut(symbol).unwrap().cancel_limit(&id);
+                            if let CancelLimitResult::Success = result {
+                                self.orderbook_id_lookup.remove(&id);
+                            }
+                            result.to_string()
                         },
                         None => "invalid id!".to_string()
                     }
