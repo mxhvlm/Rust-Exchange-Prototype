@@ -6,8 +6,8 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 
-use json::object;
 use log::info;
+use json::object;
 
 use crate::inbound_server::{AsyncMessage, InboundMessage, InboundServer};
 

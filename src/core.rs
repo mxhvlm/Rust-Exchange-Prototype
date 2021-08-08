@@ -10,6 +10,7 @@ use crate::inbound_server::{InboundMessage, InboundServer, MessageType};
 use crate::orderbook::{Orderbook, InsertLimitResult};
 use crate::symbol::Symbol;
 use crate::OrderId;
+use json::JsonValue;
 
 
 pub struct ExchangeCore {
@@ -73,7 +74,7 @@ impl ExchangeCore {
                             self.orderbook_id_lookup.insert(self.last_order_id, symbol.clone());
                         }
 
-                        result.to_string()
+                        JsonValue::from(result).to_string()
                     },
                     _ => "invalid data!".to_string(),
                 }

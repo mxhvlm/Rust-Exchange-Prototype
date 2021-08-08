@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use log::info;
 use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
+use json::{object, JsonValue};
 
 use crate::symbol::{AskOrBid, Symbol};
 use crate::OrderId;
@@ -11,8 +12,8 @@ use core::fmt;
 
 #[derive(PartialEq, Debug)]
 pub enum InsertLimitResult {
-    Success,
-    PartiallyFilled(Decimal),
+    Success(OrderId),
+    PartiallyFilled(OrderId, Decimal),
     FullyFilled,
     OrderDataInvalid
 }
@@ -44,8 +45,8 @@ pub struct Order {
 impl InsertLimitResult {
     pub fn is_success(&self) -> bool {
         match self {
-            InsertLimitResult::Success => true,
-            InsertLimitResult::PartiallyFilled(_) => true,
+            InsertLimitResult::Success(_) => true,
+            InsertLimitResult::PartiallyFilled(_, _) => true,
             InsertLimitResult::FullyFilled => true,
             InsertLimitResult::OrderDataInvalid => false,
         }
@@ -54,7 +55,43 @@ impl InsertLimitResult {
 
 impl fmt::Display for InsertLimitResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            InsertLimitResult::Success(_) => write!(f, "success"),
+            InsertLimitResult::PartiallyFilled(_, _) => write!(f, "partially_filled"),
+            InsertLimitResult::FullyFilled => write!(f, "fully_filled"),
+            InsertLimitResult::OrderDataInvalid => write!(f, "order_data_invalid"),
+        }
+    }
+}
+
+impl From<InsertLimitResult> for JsonValue {
+    fn from(result: InsertLimitResult) -> Self {
+        let status = result.to_string();
+        match result {
+            InsertLimitResult::Success(order_id) => {
+                object!{
+                    "status" => status,
+                    "order_id" => order_id
+                }
+            },
+            InsertLimitResult::OrderDataInvalid => {
+                object! {
+                    "status" => status
+                }
+            },
+            InsertLimitResult::PartiallyFilled(order_id, unfilled) => {
+                object! {
+                    "status" => status,
+                    "order_id" => order_id,
+                    "remaining" => unfilled.to_string()
+                }
+            },
+            InsertLimitResult::FullyFilled => {
+                object!{
+                    "status" => status
+                }
+            }
+        }
     }
 }
 
@@ -192,9 +229,9 @@ impl Orderbook {
 
         match self.trade_possible() {
             true => {
-                InsertLimitResult::PartiallyFilled(Decimal::default())
+                InsertLimitResult::PartiallyFilled(order_id, Decimal::default())
             },
-            false => InsertLimitResult::Success
+            false => InsertLimitResult::Success(order_id)
         }
     }
 
@@ -237,7 +274,7 @@ impl Orderbook {
         info!("Inserted order {} at price {}", order_id, price);
         self.log_best_ask_bid();
 
-        InsertLimitResult::Success
+        InsertLimitResult::Success(order_id)
     }
 
     pub fn cancel_limit(&mut self, order_id: &OrderId) -> CancelLimitResult {
@@ -310,7 +347,7 @@ mod orderbook_tests {
         //Adding limit order with an unused order_id
         assert_eq!(
             insert_limit(&mut orderbook, &id, AskOrBid::Ask, &price, &unfilled),
-            InsertLimitResult::Success
+            InsertLimitResult::Success(id)
         );
 
         //Check if order got written into the BTree
@@ -339,7 +376,7 @@ mod orderbook_tests {
         id += 1;
         assert_eq!(
             insert_limit(&mut orderbook, &id, AskOrBid::Bid, &price, &unfilled),
-            InsertLimitResult::Success
+            InsertLimitResult::Success(id)
         );
         assert_eq!(
             orderbook
