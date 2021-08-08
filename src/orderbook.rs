@@ -9,7 +9,12 @@ use crate::symbol::{AskOrBid, Symbol};
 use crate::OrderId;
 
 use core::fmt;
+use crate::order_matcher_fifo::OrderMatcherFifo;
 
+//TODO: Handle Decimal scales
+
+
+//TODO: Implement InsertLimitResult as Result<>?
 #[derive(PartialEq, Debug)]
 pub enum InsertLimitResult {
     Success(OrderId),
@@ -24,16 +29,17 @@ pub enum CancelLimitResult {
     OrderIdNotFound
 }
 
-struct OrderbookPage {
+pub struct OrderbookPage {
     pub orders: HashMap<OrderId, Order>,
     pub amount: Decimal,
 }
 
 pub struct Orderbook {
     symbol: Symbol,
-    orders_ask: BTreeMap<Decimal, OrderbookPage>,
-    orders_bid: BTreeMap<Decimal, OrderbookPage>,
-    orders_index: HashMap<OrderId, Decimal>,
+    pub orders_ask: BTreeMap<Decimal, OrderbookPage>,
+    pub orders_bid: BTreeMap<Decimal, OrderbookPage>,
+    pub orders_index: HashMap<OrderId, Decimal>, //TODO: Find a way to always guarantee that orders and index are consistent
+    order_matcher: OrderMatcherFifo
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -134,6 +140,7 @@ impl Orderbook {
             orders_ask: BTreeMap::<Decimal, OrderbookPage>::new(),
             orders_bid: BTreeMap::<Decimal, OrderbookPage>::new(),
             orders_index: HashMap::<OrderId, Decimal>::new(),
+            order_matcher: OrderMatcherFifo {},
         }
     }
 
@@ -152,12 +159,12 @@ impl Orderbook {
     /**
     Returns None if either no orders are in the orderbook or if the orderbook is in an inconsistent state
      */
-    fn get_side_for_price(
+    pub fn get_side_for_price(
         &self,
         price: &Decimal,
     ) -> Option<AskOrBid> {
         //Orderbook is in an inconsistent state eg. get_best_buy() >= get_best_bid()
-        if self.trade_possible() {
+        if self.can_match() {
             return None;
         }
         if let Some(best_ask) = self.get_best_ask() {
@@ -173,7 +180,7 @@ impl Orderbook {
         None
     }
 
-    fn get_order(&mut self, order_id: &OrderId) -> Option<&Order> {
+    pub fn get_order_mut(&mut self, order_id: &OrderId) -> Option<&mut Order> {
         if let Some(price) = self.orders_index.get(order_id) {
             if let Some(side) = self.get_side_for_price(&price) {
                 let orderbook = match side {
@@ -181,8 +188,8 @@ impl Orderbook {
                     AskOrBid::Bid => &mut self.orders_bid,
                 };
 
-                if let Some(order_page) = orderbook.get(&price) {
-                    return order_page.orders.get(order_id);
+                if let Some(order_page) = orderbook.get_mut(&price) {
+                    return order_page.orders.get_mut(order_id);
                 }
             }
         }
@@ -198,7 +205,7 @@ impl Orderbook {
         }
     }*/
 
-    fn trade_possible(&self) -> bool {
+    pub fn can_match(&self) -> bool {
         let best_ask = self.get_best_ask();
         let best_bid = self.get_best_bid();
 
@@ -232,12 +239,13 @@ impl Orderbook {
         let size = size.clone();
         let price = price.clone();
 
-        if let InsertLimitResult::OrderDataInvalid = self.insert_limit(order_id, side, price, size) {
+        if let InsertLimitResult::OrderDataInvalid = self.insert_limit(order_id, side.clone(), price, size) {
             return InsertLimitResult::OrderDataInvalid;
         }
 
-        match self.trade_possible() {
+        match self.can_match() {
             true => {
+
                 InsertLimitResult::PartiallyFilled(order_id, Decimal::default())
             },
             false => InsertLimitResult::Success(order_id)
@@ -525,11 +533,11 @@ mod orderbook_tests {
     }
 
     #[test]
-    fn test_trade_possible() {
+    fn test_can_match() {
         let mut orderbook = Orderbook::new(Symbol::BTC);
         let amount = Decimal::from(3945);
 
-        assert_eq!(orderbook.trade_possible(), false);
+        assert_eq!(orderbook.can_match(), false);
 
         insert_limit(
             &mut orderbook,
@@ -538,7 +546,7 @@ mod orderbook_tests {
             &Decimal::from(500),
             &amount,
         );
-        assert_eq!(orderbook.trade_possible(), false);
+        assert_eq!(orderbook.can_match(), false);
         insert_limit(
             &mut orderbook,
             &1u64,
@@ -547,7 +555,7 @@ mod orderbook_tests {
             &amount,
         );
 
-        assert_eq!(orderbook.trade_possible(), false);
+        assert_eq!(orderbook.can_match(), false);
 
         insert_limit(
             &mut orderbook,
@@ -557,7 +565,7 @@ mod orderbook_tests {
             &amount,
         );
 
-        assert_eq!(orderbook.trade_possible(), true);
+        assert_eq!(orderbook.can_match(), true);
     }
 
     #[test]
@@ -604,18 +612,18 @@ mod orderbook_tests {
     }
 
     #[test]
-    fn test_get_order() {
+    fn test_get_order_mut() {
         let mut orderbook = Orderbook::new(Symbol::BTC);
         let price = Decimal::from(505);
         let amount = Decimal::from(3945);
 
-        assert_eq!(orderbook.get_order(&0).is_none(), true);
+        assert_eq!(orderbook.get_order_mut(&0).is_none(), true);
 
         insert_limit(&mut orderbook, &432, AskOrBid::Bid, &price, &amount);
         insert_limit(&mut orderbook, &2130, AskOrBid::Ask, &(price + Decimal::from(1)), &amount);
 
-        assert_eq!(orderbook.get_order(&432).unwrap().unfilled, amount);
-        assert_eq!(orderbook.get_order(&212).is_none(), true);
+        assert_eq!(orderbook.get_order_mut(&432).unwrap().unfilled, amount);
+        assert_eq!(orderbook.get_order_mut(&212).is_none(), true);
     }
 
     #[test]
