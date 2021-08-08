@@ -157,27 +157,14 @@ impl Orderbook {
     }
 
     fn get_order(&self, order_id: &OrderId) -> Option<&Order> {
-        let price = self.orders_index.get(order_id);
-
-        if price.is_none() {
-            return None;
+        if let Some(price) = self.orders_index.get(order_id) {
+            if let Some(orderbook) = self.get_orderbook_side_for_price(&price) {
+                if let Some(order_page) = orderbook.get(&price) {
+                    return order_page.orders.get(order_id);
+                }
+            }
         }
-
-        let price = price.unwrap();
-        let orderbook = self.get_orderbook_side_for_price(&price);
-        if orderbook.is_none() {
-            return None;
-        }
-
-        let order_page = orderbook.unwrap().get(&price);
-        if order_page.is_none() {
-            return None;
-        }
-        let order = order_page.unwrap().orders.get(&order_id);
-        if order.is_none() {
-            return None;
-        }
-        Some(order.unwrap())
+        return None;
     }
 
     /*pub fn get_unfilled(&self, order_id: &OrderId) -> Option<Decimal> {
@@ -591,6 +578,8 @@ mod orderbook_tests {
         assert_eq!(orderbook.get_order(&0).is_none(), true);
 
         insert_limit(&mut orderbook, &432, AskOrBid::Bid, &price, &amount);
+        insert_limit(&mut orderbook, &2130, AskOrBid::Ask, &(price + Decimal::from(1)), &amount);
+
         assert_eq!(orderbook.get_order(&432).unwrap().unfilled, amount);
         assert_eq!(orderbook.get_order(&212).is_none(), true);
     }
