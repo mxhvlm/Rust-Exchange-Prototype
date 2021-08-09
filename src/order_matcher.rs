@@ -1,6 +1,7 @@
 use crate::orderbook::{Orderbook, Order};
 use crate::OrderId;
 use rust_decimal::Decimal;
+use crate::symbol::AskOrBid;
 
 pub struct Maker {
     order_id: OrderId,
@@ -9,8 +10,8 @@ pub struct Maker {
 }
 
 pub struct Match {
-    taker: OrderId,
-    makers: Vec<Maker>
+    pub taker: OrderId,
+    pub makers: Vec<(OrderId, Decimal)> //OrderId, filled
 }
 
 impl Match {
@@ -28,6 +29,6 @@ pub enum MatchError {
 }
 
 pub trait OrderMatcher {
-    fn match_limit(orderbook: &mut Orderbook, order_id: &OrderId) -> Result<Match, MatchError>;
-    fn match_market(orderbook: &mut Orderbook, order: &Order);
+    fn match_limit(&self, orderbook: &mut Orderbook, order_id: &OrderId, side: AskOrBid, price: &Decimal, amount: &Decimal,) -> Option<Match>;
+    fn match_market(&self, orderbook: &mut Orderbook, order: &Order) -> Option<Match>;
 }
