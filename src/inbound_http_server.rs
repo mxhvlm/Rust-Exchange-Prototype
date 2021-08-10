@@ -6,8 +6,8 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 
-use log::info;
 use json::object;
+use log::info;
 
 use crate::inbound_server::{AsyncMessage, InboundMessage, InboundServer};
 
@@ -66,14 +66,24 @@ fn parse_request(bytes: Vec<u8>) -> Option<InboundMessage> {
 
     //TODO: Stick to spec
     //info!("Handling request: size={}, content:\n {}", bytes.len(), request);
-    let map: Option<HashMap<String, String>> = request.split("\r\n").next()? //GET line
-        .split("?").skip(1).next()?.split(" ").next()? //Extract params
-        .split("&").into_iter().map(|x| { //Split params
-        let mut split_iter = x.split("="); //Split each key, value
-        let key = split_iter.next()?.to_string();
-        let val = split_iter.next()?.to_string();
-        return Some((key, val));
-    }).collect(); //Collect into hashmap
+    let map: Option<HashMap<String, String>> = request
+        .split("\r\n")
+        .next()? //GET line
+        .split("?")
+        .skip(1)
+        .next()?
+        .split(" ")
+        .next()? //Extract params
+        .split("&")
+        .into_iter()
+        .map(|x| {
+            //Split params
+            let mut split_iter = x.split("="); //Split each key, value
+            let key = split_iter.next()?.to_string();
+            let val = split_iter.next()?.to_string();
+            return Some((key, val));
+        })
+        .collect(); //Collect into hashmap
 
     info!("parsed request: {:?}", map);
 
@@ -94,8 +104,7 @@ impl InboundServer for InboundHttpServer {
         let tx = self.tx.clone();
 
         thread::spawn(move || {
-            let listener = TcpListener::bind(LOCAL_ADDR).expect(
-                "Unable to bind to TcpListener!", );
+            let listener = TcpListener::bind(LOCAL_ADDR).expect("Unable to bind to TcpListener!");
 
             for stream in listener.incoming() {
                 let stream = stream.unwrap();
@@ -110,10 +119,8 @@ impl InboundServer for InboundHttpServer {
 
 #[cfg(test)]
 mod tests {
-    use crate::inbound_http_server::{
-        parse_request,
-    };
-    use crate::inbound_server::{InboundServer};
+    use crate::inbound_http_server::parse_request;
+    use crate::inbound_server::InboundServer;
 
     #[test]
     fn test_parse_place_limit() {

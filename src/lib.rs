@@ -7,4 +7,3 @@ pub mod orderbook;
 pub mod symbol;
 
 pub type OrderId = u64;
-

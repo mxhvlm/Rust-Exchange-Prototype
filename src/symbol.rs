@@ -3,7 +3,6 @@
 use std::fmt;
 use std::str::FromStr;
 
-
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Symbol {
     BTC = 1,

@@ -1,19 +1,18 @@
 use std::collections::{BTreeMap, HashMap};
 
+use json::{object, JsonValue};
 use log::info;
 use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
-use json::{object, JsonValue};
 
 use crate::symbol::{AskOrBid, Symbol};
 use crate::OrderId;
 
-use core::fmt;
 use crate::order_matcher_fifo::OrderMatcherFifo;
+use core::fmt;
 use linked_hash_map::LinkedHashMap;
 
 //TODO: Handle Decimal scales
-
 
 //TODO: Implement InsertLimitResult as Result<>?
 #[derive(PartialEq, Debug)]
@@ -21,13 +20,13 @@ pub enum InsertLimitResult {
     Success(OrderId),
     PartiallyFilled(OrderId, Decimal),
     FullyFilled,
-    OrderDataInvalid
+    OrderDataInvalid,
 }
 
 #[derive(PartialEq, Debug)]
 pub enum CancelLimitResult {
     Success,
-    OrderIdNotFound
+    OrderIdNotFound,
 }
 
 pub struct OrderbookPage {
@@ -40,7 +39,7 @@ pub struct Orderbook {
     pub orders_ask: BTreeMap<Decimal, OrderbookPage>,
     pub orders_bid: BTreeMap<Decimal, OrderbookPage>,
     pub orders_index: HashMap<OrderId, Decimal>, //TODO: Find a way to always guarantee that orders and index are consistent
-    order_matcher: OrderMatcherFifo
+    order_matcher: OrderMatcherFifo,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -76,25 +75,25 @@ impl From<InsertLimitResult> for JsonValue {
         let status = result.to_string();
         match result {
             InsertLimitResult::Success(order_id) => {
-                object!{
+                object! {
                     "status" => status,
                     "order_id" => order_id
                 }
-            },
+            }
             InsertLimitResult::OrderDataInvalid => {
                 object! {
                     "status" => status
                 }
-            },
+            }
             InsertLimitResult::PartiallyFilled(order_id, unfilled) => {
                 object! {
                     "status" => status,
                     "order_id" => order_id,
                     "remaining" => unfilled.to_string()
                 }
-            },
+            }
             InsertLimitResult::FullyFilled => {
-                object!{
+                object! {
                     "status" => status
                 }
             }
@@ -156,22 +155,29 @@ impl Orderbook {
     pub fn get_best_price_for_side(&self, side: AskOrBid) -> Option<Decimal> {
         match side {
             AskOrBid::Ask => self.get_best_ask(),
-            AskOrBid::Bid => self.get_best_bid()
+            AskOrBid::Bid => self.get_best_bid(),
         }
     }
 
     pub fn can_be_matched_against(&self, new_side: AskOrBid, new_price: &Decimal) -> bool {
         match new_side {
-            AskOrBid::Bid => self.orders_ask.iter().any(|(page_price, _)| {
-                page_price <= new_price
-            }),
-            AskOrBid::Ask => self.orders_bid.iter().rev().any(|(page_price, _)| {
-                page_price >= new_price
-            })
+            AskOrBid::Bid => self
+                .orders_ask
+                .iter()
+                .any(|(page_price, _)| page_price <= new_price),
+            AskOrBid::Ask => self
+                .orders_bid
+                .iter()
+                .rev()
+                .any(|(page_price, _)| page_price >= new_price),
         }
     }
 
-    pub fn get_best_page_for_price(&mut self, side: &AskOrBid, price: &Decimal) -> Option<OrderbookPage> {
+    pub fn get_best_page_for_price(
+        &mut self,
+        side: &AskOrBid,
+        price: &Decimal,
+    ) -> Option<OrderbookPage> {
         todo!()
     }
 
@@ -182,10 +188,7 @@ impl Orderbook {
     /**
     Returns None if either no orders are in the orderbook or if the orderbook is in an inconsistent state
      */
-    pub fn get_side_for_price(
-        &self,
-        price: &Decimal,
-    ) -> Option<AskOrBid> {
+    pub fn get_side_for_price(&self, price: &Decimal) -> Option<AskOrBid> {
         //Orderbook is in an inconsistent state eg. get_best_buy() >= get_best_bid()
         if self.can_match() {
             return None;
@@ -262,16 +265,15 @@ impl Orderbook {
         let size = size.clone();
         let price = price.clone();
 
-        if let InsertLimitResult::OrderDataInvalid = self.insert_limit(order_id, side.clone(), price, size) {
+        if let InsertLimitResult::OrderDataInvalid =
+            self.insert_limit(order_id, side.clone(), price, size)
+        {
             return InsertLimitResult::OrderDataInvalid;
         }
 
         match self.can_match() {
-            true => {
-
-                InsertLimitResult::PartiallyFilled(order_id, Decimal::default())
-            },
-            false => InsertLimitResult::Success(order_id)
+            true => InsertLimitResult::PartiallyFilled(order_id, Decimal::default()),
+            false => InsertLimitResult::Success(order_id),
         }
     }
 
@@ -303,9 +305,7 @@ impl Orderbook {
 
         orderbook
             .entry(price)
-            .and_modify(|page| {
-                page.insert(&order)
-            })
+            .and_modify(|page| page.insert(&order))
             .or_insert_with(|| OrderbookPage::new(&order));
 
         self.orders_index.insert(order_id, price);
@@ -316,12 +316,7 @@ impl Orderbook {
         InsertLimitResult::Success(order_id)
     }
 
-    pub fn _insert_limit(
-        &mut self,
-        order: Order,
-        side: AskOrBid,
-        price: Decimal
-    )  {
+    pub fn _insert_limit(&mut self, order: Order, side: AskOrBid, price: Decimal) {
         if self.orders_index.contains_key(&order.id) {
             panic!("order with the same id already in index!");
         }
@@ -336,9 +331,7 @@ impl Orderbook {
 
         orderbook
             .entry(price)
-            .and_modify(|page| {
-                page.insert(&order)
-            })
+            .and_modify(|page| page.insert(&order))
             .or_insert_with(|| OrderbookPage::new(&order));
 
         self.orders_index.insert(order.id, price);
@@ -359,7 +352,7 @@ impl Orderbook {
                         if orderbook_page.amount == Decimal::from(0) {
                             orderbook.remove(price);
                         }
-                        return CancelLimitResult::Success
+                        return CancelLimitResult::Success;
                     }
                 }
             } else {
@@ -396,30 +389,60 @@ mod orderbook_tests {
     #[test]
     fn test_can_match_against() {
         let mut orderbook = Orderbook::new(Symbol::ETH);
-        assert_eq!(orderbook.can_be_matched_against(AskOrBid::Ask, &Decimal::zero()), false);
+        assert_eq!(
+            orderbook.can_be_matched_against(AskOrBid::Ask, &Decimal::zero()),
+            false
+        );
 
-        insert_limit(&mut orderbook,
-                     &0,
-                     AskOrBid::Ask,
-                     &Decimal::from(2004),
-                     &Decimal::from(56));
+        insert_limit(
+            &mut orderbook,
+            &0,
+            AskOrBid::Ask,
+            &Decimal::from(2004),
+            &Decimal::from(56),
+        );
 
-        assert_eq!(orderbook.can_be_matched_against(AskOrBid::Ask, &Decimal::from(2004)), false);
-        assert_eq!(orderbook.can_be_matched_against(AskOrBid::Bid, &Decimal::from(2003)), false);
-        assert_eq!(orderbook.can_be_matched_against(AskOrBid::Bid, &Decimal::from(2004)), true);
-        assert_eq!(orderbook.can_be_matched_against(AskOrBid::Bid, &Decimal::from(20123)), true);
+        assert_eq!(
+            orderbook.can_be_matched_against(AskOrBid::Ask, &Decimal::from(2004)),
+            false
+        );
+        assert_eq!(
+            orderbook.can_be_matched_against(AskOrBid::Bid, &Decimal::from(2003)),
+            false
+        );
+        assert_eq!(
+            orderbook.can_be_matched_against(AskOrBid::Bid, &Decimal::from(2004)),
+            true
+        );
+        assert_eq!(
+            orderbook.can_be_matched_against(AskOrBid::Bid, &Decimal::from(20123)),
+            true
+        );
 
-        insert_limit(&mut orderbook,
-                     &1,
-                     AskOrBid::Bid,
-                     &Decimal::from(1999),
-                     &Decimal::from(56));
+        insert_limit(
+            &mut orderbook,
+            &1,
+            AskOrBid::Bid,
+            &Decimal::from(1999),
+            &Decimal::from(56),
+        );
 
-        assert_eq!(orderbook.can_be_matched_against(AskOrBid::Bid, &Decimal::from(1950)), false);
-        assert_eq!(orderbook.can_be_matched_against(AskOrBid::Ask, &Decimal::from(2000)), false);
-        assert_eq!(orderbook.can_be_matched_against(AskOrBid::Ask, &Decimal::from(1999)), true);
-        assert_eq!(orderbook.can_be_matched_against(AskOrBid::Ask, &Decimal::from(1000)), true);
-
+        assert_eq!(
+            orderbook.can_be_matched_against(AskOrBid::Bid, &Decimal::from(1950)),
+            false
+        );
+        assert_eq!(
+            orderbook.can_be_matched_against(AskOrBid::Ask, &Decimal::from(2000)),
+            false
+        );
+        assert_eq!(
+            orderbook.can_be_matched_against(AskOrBid::Ask, &Decimal::from(1999)),
+            true
+        );
+        assert_eq!(
+            orderbook.can_be_matched_against(AskOrBid::Ask, &Decimal::from(1000)),
+            true
+        );
     }
 
     #[test]
@@ -453,7 +476,10 @@ mod orderbook_tests {
             unfilled: order1_amount,
         };
         let mut page = OrderbookPage::new(&order);
-        page.insert(&Order{ id: 1, unfilled: order2_amount});
+        page.insert(&Order {
+            id: 1,
+            unfilled: order2_amount,
+        });
 
         let removed_order = page.remove(&0);
         assert_eq!(removed_order, Some(order));
@@ -660,10 +686,7 @@ mod orderbook_tests {
         let amount = Decimal::from(3945);
 
         //No orders in orderbook
-        assert_eq!(
-            orderbook.get_side_for_price(&price_ask).is_none(),
-            true
-        );
+        assert_eq!(orderbook.get_side_for_price(&price_ask).is_none(), true);
 
         //check for asks
         insert_limit(&mut orderbook, &0, AskOrBid::Ask, &price_ask, &amount);
@@ -674,7 +697,10 @@ mod orderbook_tests {
                 .is_none(),
             true
         );
-        assert_eq!(orderbook.get_side_for_price(&price_ask).unwrap(), AskOrBid::Ask);
+        assert_eq!(
+            orderbook.get_side_for_price(&price_ask).unwrap(),
+            AskOrBid::Ask
+        );
 
         //Check for bids
         insert_limit(&mut orderbook, &1, AskOrBid::Bid, &price_bid, &amount);
@@ -685,14 +711,14 @@ mod orderbook_tests {
                 .is_none(),
             true
         );
-        assert_eq!(orderbook.get_side_for_price(&price_bid).unwrap(), AskOrBid::Bid);
+        assert_eq!(
+            orderbook.get_side_for_price(&price_bid).unwrap(),
+            AskOrBid::Bid
+        );
 
         //Bring orderbook into inconsistent state
         insert_limit(&mut orderbook, &2, AskOrBid::Bid, &price_ask, &amount);
-        assert_eq!(
-            orderbook.get_side_for_price(&price_ask).is_none(),
-            true
-        );
+        assert_eq!(orderbook.get_side_for_price(&price_ask).is_none(), true);
     }
 
     #[test]
@@ -704,7 +730,13 @@ mod orderbook_tests {
         assert_eq!(orderbook.get_order_mut(&0).is_none(), true);
 
         insert_limit(&mut orderbook, &432, AskOrBid::Bid, &price, &amount);
-        insert_limit(&mut orderbook, &2130, AskOrBid::Ask, &(price + Decimal::from(1)), &amount);
+        insert_limit(
+            &mut orderbook,
+            &2130,
+            AskOrBid::Ask,
+            &(price + Decimal::from(1)),
+            &amount,
+        );
 
         assert_eq!(orderbook.get_order_mut(&432).unwrap().unfilled, amount);
         assert_eq!(orderbook.get_order_mut(&212).is_none(), true);
@@ -714,7 +746,10 @@ mod orderbook_tests {
     fn test_cancel_limit() {
         let mut orderbook = Orderbook::new(Symbol::BTC);
 
-        assert_eq!(orderbook.cancel_limit(&0), CancelLimitResult::OrderIdNotFound);
+        assert_eq!(
+            orderbook.cancel_limit(&0),
+            CancelLimitResult::OrderIdNotFound
+        );
         insert_limit(
             &mut orderbook,
             &0,

@@ -1,17 +1,14 @@
-
 use std::collections::HashMap;
 use std::io::ErrorKind;
-
 
 use log::{error, info};
 
 use crate::inbound_http_server::InboundHttpServer;
 use crate::inbound_server::{InboundMessage, InboundServer, MessageType};
-use crate::orderbook::{Orderbook, InsertLimitResult, CancelLimitResult};
+use crate::orderbook::{CancelLimitResult, InsertLimitResult, Orderbook};
 use crate::symbol::Symbol;
 use crate::OrderId;
 use json::JsonValue;
-
 
 pub struct ExchangeCore {
     orderbooks: HashMap<Symbol, Orderbook>,
@@ -30,7 +27,7 @@ impl ExchangeCore {
         ExchangeCore {
             orderbooks,
             last_order_id: 0,
-            orderbook_id_lookup
+            orderbook_id_lookup,
         }
     }
 
@@ -71,26 +68,25 @@ impl ExchangeCore {
                         );
 
                         if result.is_success() {
-                            self.orderbook_id_lookup.insert(self.last_order_id, symbol.clone());
+                            self.orderbook_id_lookup
+                                .insert(self.last_order_id, symbol.clone());
                         }
 
                         JsonValue::from(result).to_string()
-                    },
+                    }
                     _ => "invalid data!".to_string(),
                 }
             }
             MessageType::CancelLimitOrder => match msg.order_id {
-                Some(id) => {
-                    match self.orderbook_id_lookup.get_mut(&id) {
-                        Some(symbol) => {
-                            let result = self.orderbooks.get_mut(symbol).unwrap().cancel_limit(&id);
-                            if let CancelLimitResult::Success = result {
-                                self.orderbook_id_lookup.remove(&id);
-                            }
-                            result.to_string()
-                        },
-                        None => "invalid id!".to_string()
+                Some(id) => match self.orderbook_id_lookup.get_mut(&id) {
+                    Some(symbol) => {
+                        let result = self.orderbooks.get_mut(symbol).unwrap().cancel_limit(&id);
+                        if let CancelLimitResult::Success = result {
+                            self.orderbook_id_lookup.remove(&id);
+                        }
+                        result.to_string()
                     }
+                    None => "invalid id!".to_string(),
                 },
                 _ => "no order_id given".to_string(),
             },
