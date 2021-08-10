@@ -160,13 +160,13 @@ impl Orderbook {
         }
     }
 
-    pub fn can_be_matched_against(&self, side: AskOrBid, price: &Decimal) -> bool {
-        match side {
+    pub fn can_be_matched_against(&self, new_side: AskOrBid, new_price: &Decimal) -> bool {
+        match new_side {
             AskOrBid::Bid => self.orders_ask.iter().any(|(page_price, _)| {
-                page_price <= price
+                page_price <= new_price
             }),
             AskOrBid::Ask => self.orders_bid.iter().rev().any(|(page_price, _)| {
-                page_price >= price
+                page_price >= new_price
             })
         }
     }

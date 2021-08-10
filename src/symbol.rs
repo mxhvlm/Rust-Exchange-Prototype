@@ -10,7 +10,7 @@ pub enum Symbol {
     ETH = 2,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Copy)]
 pub enum AskOrBid {
     Ask = 0,
     Bid = 1,
