@@ -120,7 +120,6 @@ impl InboundServer for InboundHttpServer {
 #[cfg(test)]
 mod tests {
     use crate::inbound_http_server::parse_request;
-    use crate::inbound_server::InboundServer;
 
     #[test]
     fn test_parse_place_limit() {
@@ -132,19 +131,4 @@ mod tests {
         .into_bytes();
         parse_request(request);
     }
-
-    //#[test]
-    // fn test_recv_handle_msg() {
-    //     let (rx, server) = InboundHttpServer::new();
-    //
-    //     server.run();
-    //
-    //     let mut client = TcpStream::connect(LOCAL_ADDR).unwrap();
-    //     client.write_all("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".as_bytes()).unwrap();
-    //
-    //     let msg = rx.recv().unwrap().cmd;
-    //     assert_eq!(msg, InboundMessage::get_dummy());
-    //
-    //     //TODO: Update test when more server functionality is added
-    // }
 }
