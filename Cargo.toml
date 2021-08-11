@@ -13,3 +13,11 @@ rand = "0.8.4"
 rand_chacha = "0.3.1"
 json = "0.12.4"
 linked-hash-map = "0.5.4"
+rand_distr = "0.4.1"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "order_matcher_fifo_benchmark"
+harness = false

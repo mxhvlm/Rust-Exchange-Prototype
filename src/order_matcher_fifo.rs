@@ -1,9 +1,9 @@
-use crate::order_matcher::{Match, MatchError, OrderMatcher};
-use crate::orderbook::{Order, Orderbook, OrderbookPage};
+use crate::order_matcher::{Match, OrderMatcher};
+use crate::orderbook::{Order, Orderbook};
 use crate::symbol::AskOrBid;
 use crate::OrderId;
-use log::info;
-use log::Level::Debug;
+
+
 use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
 
@@ -24,7 +24,7 @@ impl OrderMatcher for OrderMatcherFifo {
         price: &Decimal,
         amount: &Decimal,
     ) -> Option<Match> {
-        let (orderbook_maker, orderbook_taker) = match side {
+        let (orderbook_maker, _orderbook_taker) = match side {
             AskOrBid::Ask => (&mut orderbook.orders_bid, &mut orderbook.orders_ask),
             AskOrBid::Bid => (&mut orderbook.orders_ask, &mut orderbook.orders_bid),
         };
@@ -47,42 +47,15 @@ impl OrderMatcher for OrderMatcherFifo {
                     .find(|(page_price, _)| *page_price >= price),
             };
 
-            /*let mut can_trade;
-            let mut best_price= None;
-
-            match side {
-                AskOrBid::Ask => {
-                    match orderbook.get_best_bid() {
-                        None => {
-                            can_trade = false;
-                        }
-                        Some(best_bid) => {
-                            best_price = Some(best_bid);
-                            can_trade = best_bid >= *price;
-                        }
-                    }
-
-                },
-                AskOrBid::Bid => {
-                    match orderbook.get_best_ask() {
-                        None => {
-                            can_trade = false;
-                        }
-                        Some(best_bid) => {
-                            best_price = Some(best_bid);
-                            can_trade = best_bid <= *price;
-                        }
-                    }
-                }
-            }
-            if !can_trade {
-                //break;
-            }*/
-
             if let Some((page_price, ref mut page)) = tuple {
                 'order_loop: loop {
+                    if order.unfilled == Decimal::zero() {
+                        //Order fully matched
+                        break 'page_loop;
+                    }
+
                     if let Some(mut maker_entry) = page.orders.entries().next() {
-                        let mut maker_order = maker_entry.get_mut();
+                        let maker_order = maker_entry.get_mut();
                         if maker_order.unfilled > order.unfilled {
                             //Maker can filly absorb the (remaining) order
                             maker_order.unfilled -= order.unfilled;
@@ -104,10 +77,6 @@ impl OrderMatcher for OrderMatcherFifo {
                         //No more orders left on page
                         break 'order_loop;
                     }
-                    if order.unfilled == Decimal::zero() {
-                        //Order fully matched
-                        break 'page_loop;
-                    }
                 }
             } else {
                 break 'page_loop; //No pages left
@@ -120,6 +89,14 @@ impl OrderMatcher for OrderMatcherFifo {
                     if page.orders.is_empty() {
                         orderbook_maker.remove(&page_to_remove);
                     }
+                }
+            }
+        }
+        if let Some(page_to_remove) = page_to_remove {
+            if let Some(page) = orderbook_maker.get(&page_to_remove) {
+                //Delete page when empty
+                if page.orders.is_empty() {
+                    orderbook_maker.remove(&page_to_remove);
                 }
             }
         }
@@ -160,6 +137,16 @@ mod tests {
     use crate::symbol::{AskOrBid, Symbol};
     use rust_decimal::prelude::ToPrimitive;
     use rust_decimal::Decimal;
+    use rand::{thread_rng, RngCore, SeedableRng, Rng};
+    use std::time::{Instant, Duration};
+    use rand::distributions::{Distribution};
+    use rand::rngs::ThreadRng;
+    use std::convert::TryInto;
+    use rand::prelude::StdRng;
+    use log::info;
+    use crate::symbol::AskOrBid::Ask;
+    use rand_distr::Normal;
+
 
     #[test]
     fn test_match_limit_single_price_level() {
@@ -191,7 +178,7 @@ mod tests {
             orderbook.orders_ask.get(&price).unwrap().amount,
             first_maker_amount
         );
-        let (id, order) = orderbook
+        let (_id, order) = orderbook
             .orders_ask
             .get(&price)
             .unwrap()
@@ -272,7 +259,7 @@ mod tests {
 
         //Take more than remaining amount
         taker_id += 1;
-        let result = matcher
+        let _result = matcher
             .match_limit(
                 &mut orderbook,
                 &taker_id,
@@ -301,7 +288,7 @@ mod tests {
         let matcher = OrderMatcherFifo::new();
 
         let first_maker_id = 0;
-        let mut second_maker_id = 1;
+        let second_maker_id = 1;
 
         let first_maker_amount = Decimal::from(32);
 
@@ -338,7 +325,7 @@ mod tests {
         assert_eq!(result.makers.len(), 1);
 
         let mut iter = result.makers.iter();
-        let (id, filled) = iter.next().unwrap();
+        let (id, _filled) = iter.next().unwrap();
         assert_eq!(*id, first_maker_id);
     }
 
@@ -348,7 +335,7 @@ mod tests {
         let matcher = OrderMatcherFifo::new();
 
         let first_maker_id = 0;
-        let mut second_maker_id = 1;
+        let second_maker_id = 1;
 
         let first_maker_amount = Decimal::from(32);
 
@@ -373,7 +360,7 @@ mod tests {
         );
 
         let price_limit = &(price2 - Decimal::ONE);
-        let result = matcher
+        let _result = matcher
             .match_limit(
                 &mut orderbook,
                 &3,
@@ -478,8 +465,21 @@ mod tests {
         //Matched against three makers
         assert_eq!(result.makers.len(), 3);
         for i in 0..3 {
-            let (order_id, price) = result.makers.get(i).unwrap();
+            let (order_id, _price) = result.makers.get(i).unwrap();
             assert_eq!(*order_id, i.to_u64().unwrap());
         }
+    }
+
+    #[test]
+    fn test_match_endless_loop() {
+        let mut orderbook = Orderbook::new(Symbol::ETH);
+        let matcher = OrderMatcherFifo::new();
+
+        let mut order_id = 6;
+        // matcher.match_limit(&mut orderbook, &0, AskOrBid::Bid, &Decimal::from(6), &Decimal::ONE);order_id += 1;
+        // matcher.match_limit(&mut orderbook, &1, AskOrBid::Ask, &Decimal::from(1), &Decimal::ONE);order_id += 1;
+        matcher.match_limit(&mut orderbook, &2, AskOrBid::Bid, &Decimal::from(7), &Decimal::ONE);order_id += 1;
+        matcher.match_limit(&mut orderbook, &3, AskOrBid::Ask, &Decimal::from(7), &Decimal::ONE);order_id += 1;
+        matcher.match_limit(&mut orderbook, &7, AskOrBid::Ask, &Decimal::from(6), &Decimal::ONE);order_id += 1;
     }
 }

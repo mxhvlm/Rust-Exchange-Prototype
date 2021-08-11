@@ -175,8 +175,8 @@ impl Orderbook {
 
     pub fn get_best_page_for_price(
         &mut self,
-        side: &AskOrBid,
-        price: &Decimal,
+        _side: &AskOrBid,
+        _price: &Decimal,
     ) -> Option<OrderbookPage> {
         todo!()
     }
@@ -348,7 +348,7 @@ impl Orderbook {
                     AskOrBid::Bid => &mut self.orders_bid,
                 };
                 if let Some(orderbook_page) = orderbook.get_mut(price) {
-                    if let Some(removed) = orderbook_page.remove(order_id) {
+                    if let Some(_removed) = orderbook_page.remove(order_id) {
                         if orderbook_page.amount == Decimal::from(0) {
                             orderbook.remove(price);
                         }
@@ -365,7 +365,7 @@ impl Orderbook {
 
 #[cfg(test)]
 mod orderbook_tests {
-    use std::hash::Hash;
+    
 
     use rand::{RngCore, SeedableRng};
 

@@ -1,7 +1,7 @@
 use core::fmt;
 use std::collections::HashMap;
 use std::fmt::Formatter;
-use std::io::ErrorKind;
+
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 

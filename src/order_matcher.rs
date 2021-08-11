@@ -1,4 +1,4 @@
-use crate::orderbook::{Order, Orderbook};
+use crate::orderbook::{Orderbook};
 use crate::symbol::AskOrBid;
 use crate::OrderId;
 use rust_decimal::Decimal;

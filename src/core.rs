@@ -1,11 +1,10 @@
 use std::collections::HashMap;
-use std::io::ErrorKind;
 
-use log::{error, info};
+use log::{info};
 
 use crate::inbound_http_server::InboundHttpServer;
 use crate::inbound_server::{InboundMessage, InboundServer, MessageType};
-use crate::orderbook::{CancelLimitResult, InsertLimitResult, Orderbook};
+use crate::orderbook::{CancelLimitResult, Orderbook};
 use crate::symbol::Symbol;
 use crate::OrderId;
 use json::JsonValue;
@@ -19,7 +18,7 @@ pub struct ExchangeCore {
 impl ExchangeCore {
     pub fn new() -> ExchangeCore {
         let mut orderbooks = HashMap::new();
-        let mut orderbook_id_lookup = HashMap::new();
+        let orderbook_id_lookup = HashMap::new();
 
         orderbooks.insert(Symbol::BTC, Orderbook::new(Symbol::BTC));
         orderbooks.insert(Symbol::ETH, Orderbook::new(Symbol::ETH));
