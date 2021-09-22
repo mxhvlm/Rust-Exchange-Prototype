@@ -1,0 +1,630 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="51b1dadf-f34b-427b-bcc0-904b4b952cb2" name="Default Changelist" comment="Included Intellij project files">
+      <change beforePath="$PROJECT_DIR$/benches/order_matcher_fifo_benchmark.rs" beforeDir="false" afterPath="$PROJECT_DIR$/benches/order_matcher_fifo_benchmark.rs" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Rust File" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RESET_MODE" value="HARD" />
+  </component>
+  <component name="GitSEFilterConfiguration">
+    <file-type-list>
+      <filtered-out-file-type name="LOCAL_BRANCH" />
+      <filtered-out-file-type name="REMOTE_BRANCH" />
+      <filtered-out-file-type name="TAG" />
+      <filtered-out-file-type name="COMMIT_BY_MESSAGE" />
+    </file-type-list>
+  </component>
+  <component name="KotlinMultiplatform">
+    <allAvailableExecutables />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="2qn37zcv" />
+  </component>
+  <component name="ProjectId" id="1w92gzkDgIuOOvptTo1bC3QV7fb" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="aspect.path.notification.shown" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../rand-master" />
+    <property name="nodejs_package_manager_path" value="npm" />
+    <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
+    <property name="restartRequiresConfirmation" value="false" />
+    <property name="settings.editor.selected.configurable" value="editor.preferences.fonts.default" />
+  </component>
+  <component name="ReaderModeSettings">
+    <option name="showLigatures" value="true" />
+  </component>
+  <component name="RunManager" selected="Cargo.Test">
+    <configuration name="Bench order_matcher_fifo::tests::test_match_limit_performance" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="bench --package exchange_prototype --lib order_matcher_fifo::tests::test_match_limit_performance -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Run" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="run --package exchange_prototype --bin exchange_prototype" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs>
+        <env name="RUST_LOG" value="debug" />
+      </envs>
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test criterion_benchmark" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package exchange_prototype --bench order_matcher_fifo_benchmark criterion_benchmark -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test order_matcher_fifo::tests::criterion_benchmark" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package exchange_prototype --lib order_matcher_fifo::tests::criterion_benchmark -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test order_matcher_fifo::tests::test_match_endless_loop" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package exchange_prototype --lib order_matcher_fifo::tests::test_match_endless_loop -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test order_matcher_fifo::tests::test_match_limit_multi_maker_prices" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package exchange_prototype --lib order_matcher_fifo::tests::test_match_limit_multi_maker_prices -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="test" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs>
+        <env name="RUST_LOG" value="debug" />
+      </envs>
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="Cargo.Run" />
+      <item itemvalue="Cargo.Test" />
+      <item itemvalue="Cargo.Bench order_matcher_fifo::tests::test_match_limit_performance" />
+      <item itemvalue="Cargo.Test criterion_benchmark" />
+      <item itemvalue="Cargo.Test order_matcher_fifo::tests::criterion_benchmark" />
+      <item itemvalue="Cargo.Test order_matcher_fifo::tests::test_match_limit_multi_maker_prices" />
+      <item itemvalue="Cargo.Test order_matcher_fifo::tests::test_match_endless_loop" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Cargo.Test order_matcher_fifo::tests::criterion_benchmark" />
+        <item itemvalue="Cargo.Test order_matcher_fifo::tests::test_match_endless_loop" />
+        <item itemvalue="Cargo.Test order_matcher_fifo::tests::test_match_limit_multi_maker_prices" />
+        <item itemvalue="Cargo.Test criterion_benchmark" />
+        <item itemvalue="Cargo.Bench order_matcher_fifo::tests::test_match_limit_performance" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+    <option name="version" value="2" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="51b1dadf-f34b-427b-bcc0-904b4b952cb2" name="Default Changelist" comment="" />
+      <created>1627856601165</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1627856601165</updated>
+      <workItem from="1627856603422" duration="11634000" />
+      <workItem from="1627931257729" duration="13615000" />
+      <workItem from="1627945001498" duration="5559000" />
+      <workItem from="1628019761319" duration="16388000" />
+      <workItem from="1628119639054" duration="105000" />
+      <workItem from="1628119837400" duration="367000" />
+      <workItem from="1628120220951" duration="1568000" />
+      <workItem from="1628256659225" duration="38950000" />
+      <workItem from="1628373369061" duration="5043000" />
+      <workItem from="1628378485183" duration="4047000" />
+      <workItem from="1628424637826" duration="19320000" />
+      <workItem from="1628454241870" duration="6451000" />
+      <workItem from="1628531824102" duration="9623000" />
+      <workItem from="1628604740128" duration="20147000" />
+      <workItem from="1628629108443" duration="9779000" />
+      <workItem from="1628684934122" duration="1675000" />
+      <workItem from="1628687478645" duration="3335000" />
+      <workItem from="1628704125063" duration="1950000" />
+      <workItem from="1628707189845" duration="3444000" />
+      <workItem from="1628801676923" duration="15000" />
+      <workItem from="1628805161911" duration="320000" />
+      <workItem from="1632343484608" duration="527000" />
+    </task>
+    <task id="LOCAL-00007" summary="Started adding tests for add_limit">
+      <created>1627950051693</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1627950051693</updated>
+    </task>
+    <task id="LOCAL-00008" summary="Completed test for add_limit and added test for get_best_ask and get_best_bid">
+      <created>1628022712544</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1628022712544</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Added Cargo.toml">
+      <created>1628022735770</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1628022735770</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Fixed a bug where can_trade didn't check for None Option">
+      <created>1628023046376</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1628023046376</updated>
+    </task>
+    <task id="LOCAL-00011" summary="Added test for can_trade">
+      <created>1628023456723</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1628023456723</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Split add_limit into process_limit and insert_limit allowing for isolated testing of adding and adding and processing limit orders.&#10;&#10;Added wrapper function to tests to make testing insert_limit easiert">
+      <created>1628024385080</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1628024385080</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Decided against matching possible limit orders before writing them into the orderbook. &#10;Doing so would be faster but crashes could leave the orderbook in an inconsistent state.">
+      <created>1628025672720</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1628025672720</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Added order_matcher.rs">
+      <created>1628026160868</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1628026160868</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Implemented contains_order() and get_orderbook_for_side()">
+      <created>1628030183186</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1628030183186</updated>
+    </task>
+    <task id="LOCAL-00016" summary="Added documentation for get_orderbook_for_price()">
+      <created>1628030325249</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1628030325249</updated>
+    </task>
+    <task id="LOCAL-00017" summary="Added test for contains_order()">
+      <created>1628030637809</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1628030637809</updated>
+    </task>
+    <task id="LOCAL-00018" summary="Added test for get_orderbook_for_price()">
+      <created>1628032174680</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1628032174680</updated>
+    </task>
+    <task id="LOCAL-00019" summary="Implemented get_order()">
+      <created>1628033384100</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1628033384100</updated>
+    </task>
+    <task id="LOCAL-00020" summary="Cleanup">
+      <created>1628035030414</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1628035030414</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Moved order routing into process_inbound_message()">
+      <created>1628035076734</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1628035076734</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Refactor: renamed process_limit into insert_try_exec_limit">
+      <created>1628035269529</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1628035269529</updated>
+    </task>
+    <task id="LOCAL-00023" summary="Refactor: renamed functions to&#10;get_orderbook_side_for_price() and &#10;trade_possible()">
+      <created>1628035545466</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1628035545466</updated>
+    </task>
+    <task id="LOCAL-00024" summary="Refactor: Moved InboundMsg and MessageType to their own file in order to switch out bad tcp server implementation with much better http api">
+      <created>1628120800545</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1628120800545</updated>
+    </task>
+    <task id="LOCAL-00025" summary="Added .gitignore">
+      <created>1628120989305</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1628120989305</updated>
+    </task>
+    <task id="LOCAL-00026" summary="Refactor: Renamed InboundServer to InboundTcpServer">
+      <created>1628257099102</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1628257099102</updated>
+    </task>
+    <task id="LOCAL-00027" summary="Fixed bug in test_get_best_ask_bid() and made test deterministic by seeding the rand function">
+      <created>1628258951916</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1628258951916</updated>
+    </task>
+    <task id="LOCAL-00028" summary="Started implementing inbound http server">
+      <created>1628259621823</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1628259621823</updated>
+    </task>
+    <task id="LOCAL-00029" summary="Refactor: Removed shared bool for stopping inbound server as this will be done by implementing Drop trait instead">
+      <created>1628259707081</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1628259707081</updated>
+    </task>
+    <task id="LOCAL-00030" summary="Implemented bare minimum http server">
+      <created>1628261357705</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1628261357705</updated>
+    </task>
+    <task id="LOCAL-00031" summary="Implemented MPSC generic resquest / response channel">
+      <created>1628271438409</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1628271438409</updated>
+    </task>
+    <task id="LOCAL-00032" summary="Implemented MPSC generic resquest / response channel for HttpServer">
+      <created>1628277326363</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1628277326363</updated>
+    </task>
+    <task id="LOCAL-00033" summary="Started adding tests for inbound_http_server.rs">
+      <created>1628278287416</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1628278287416</updated>
+    </task>
+    <task id="LOCAL-00034" summary="Refactor: Moved InboundMessage, MessageType to inbound_server.rs">
+      <created>1628278952903</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1628278952903</updated>
+    </task>
+    <task id="LOCAL-00035" summary="Refactor: Removed unused imports, fixed warinings">
+      <created>1628279788946</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1628279788946</updated>
+    </task>
+    <task id="LOCAL-00036" summary="Finished HTTP GET parsing for current set of actions an parameters">
+      <created>1628292938515</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1628292938515</updated>
+    </task>
+    <task id="LOCAL-00037" summary="Implemented basic JSON api and implemented remove_limit API endpoint">
+      <created>1628297665331</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1628297665331</updated>
+    </task>
+    <task id="LOCAL-00038" summary="Ran cargofmt">
+      <created>1628300797865</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1628300797865</updated>
+    </task>
+    <task id="LOCAL-00039" summary="Ran cargo fix">
+      <created>1628300985584</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1628300985584</updated>
+    </task>
+    <task id="LOCAL-00040" summary="- Created custom return type for insert_limit, try_insert_limit and remove_limit&#10;- Renamed remove_limit to more fitting cancel_limit&#10;- Moved logic for creating response string from inbount_http_server to core">
+      <created>1628376275719</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1628376275719</updated>
+    </task>
+    <task id="LOCAL-00041" summary="cancel_limit now returns CancelLimitResult">
+      <created>1628379793333</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1628379793333</updated>
+    </task>
+    <task id="LOCAL-00042" summary="cancel_limit now returns CancelLimitResult">
+      <created>1628379807165</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1628379807165</updated>
+    </task>
+    <task id="LOCAL-00043" summary="Added type alias OrderId for u64">
+      <created>1628380470715</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1628380470715</updated>
+    </task>
+    <task id="LOCAL-00044" summary="Implemented From&lt;InsertLimitResult&gt; for Json::JsonValue">
+      <created>1628382476596</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1628382476596</updated>
+    </task>
+    <task id="LOCAL-00045" summary="Refactored get_order">
+      <created>1628425874421</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1628425874421</updated>
+    </task>
+    <task id="LOCAL-00046" summary="- Finished implementing cancel_limit&#10;- Implemented get() remove() and insert() for OrderbookPage">
+      <created>1628430607884</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1628430607884</updated>
+    </task>
+    <task id="LOCAL-00047" summary="- Started implementing matching engine&#10;- Renamed trade_possible() to can_match()&#10;- Made get_order() mutable">
+      <created>1628449507563</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1628449507563</updated>
+    </task>
+    <task id="LOCAL-00048" summary="- Implemented limit order matching">
+      <created>1628536093928</created>
+      <option name="number" value="00048" />
+      <option name="presentableId" value="LOCAL-00048" />
+      <option name="project" value="LOCAL" />
+      <updated>1628536093928</updated>
+    </task>
+    <task id="LOCAL-00049" summary="- Fixed bug in limit order execution where a limit order would always get executed at the given price, even when there would've been better orders available">
+      <created>1628620319094</created>
+      <option name="number" value="00049" />
+      <option name="presentableId" value="LOCAL-00049" />
+      <option name="project" value="LOCAL" />
+      <updated>1628620319094</updated>
+    </task>
+    <task id="LOCAL-00050" summary="Cargo fmt">
+      <created>1628620665814</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1628620665815</updated>
+    </task>
+    <task id="LOCAL-00051" summary="Cargo fmt">
+      <created>1628620694251</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1628620694251</updated>
+    </task>
+    <task id="LOCAL-00052" summary="Removed unused test">
+      <created>1628641245477</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1628641245477</updated>
+    </task>
+    <task id="LOCAL-00053" summary="Added benchmarking for oder matching based on normal distribution of orders around market price">
+      <created>1628684992694</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1628684992694</updated>
+    </task>
+    <task id="LOCAL-00054" summary="Fixed a bug where order matching wouldn't terminate under certain circumstances. Wrote Test do detect the bug">
+      <created>1628685110220</created>
+      <option name="number" value="00054" />
+      <option name="presentableId" value="LOCAL-00054" />
+      <option name="project" value="LOCAL" />
+      <updated>1628685110220</updated>
+    </task>
+    <task id="LOCAL-00055" summary="Included Intellij project files">
+      <created>1632343562476</created>
+      <option name="number" value="00055" />
+      <option name="presentableId" value="LOCAL-00055" />
+      <option name="project" value="LOCAL" />
+      <updated>1632343562477</updated>
+    </task>
+    <option name="localTasksCounter" value="56" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Implemented MPSC generic resquest / response channel" />
+    <MESSAGE value="Implemented MPSC generic resquest / response channel for HttpServer" />
+    <MESSAGE value="Started adding tests for inbound_http_server.rs" />
+    <MESSAGE value="Refactor: Moved InboundMessage, MessageType to inbound_server.rs" />
+    <MESSAGE value="Refactor: Removed unused imports, fixed warinings" />
+    <MESSAGE value="Refactor: Removed unused order.rs" />
+    <MESSAGE value="Finished HTTP GET parsing for current set of actions an parameters" />
+    <MESSAGE value="Implemented basic JSON api and implemented remove_limit API endpoint" />
+    <MESSAGE value="Ran cargofmt" />
+    <MESSAGE value="Ran cargo fix" />
+    <MESSAGE value="- Created custom return type for insert_limit, try_insert_limit and remove_limit&#10;- Renamed remove_limit to more fitting cancel_limit&#10;- Moved logic for creating response string from inbount_http_server to core" />
+    <MESSAGE value="cancel_limit now returns CancelLimitResult" />
+    <MESSAGE value="Added type alias OrderId for u64" />
+    <MESSAGE value="Implemented From&lt;InsertLimitResult&gt; for Json::JsonValue" />
+    <MESSAGE value="Refactored get_order" />
+    <MESSAGE value="- Finished implementing cancel_limit&#10;- Implemented get() remove() and insert() for OrderbookPage" />
+    <MESSAGE value="- Started implementing matching engine&#10;- Renamed trade_possible() to can_match()&#10;- Made get_order() mutable" />
+    <MESSAGE value="- Implemented limit order matching" />
+    <MESSAGE value="- Fixed bug in limit order execution where a limit order would always get executed at the given price, even when there would've been better orders available" />
+    <MESSAGE value="Implemented Market Order matching" />
+    <MESSAGE value="Cargo fmt" />
+    <MESSAGE value="Removed unused test" />
+    <MESSAGE value="Added benchmarking for oder matching based on normal distribution of orders around market price" />
+    <MESSAGE value="Fixed a bug where order matching wouldn't terminate under certain circumstances. Wrote Test do detect the bug" />
+    <MESSAGE value="Included Intellij project files" />
+    <option name="LAST_COMMIT_MESSAGE" value="Included Intellij project files" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/src/order_matcher_fifo.rs</url>
+          <line>31</line>
+          <option name="timeStamp" value="18" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+</project>
