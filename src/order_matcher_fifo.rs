@@ -45,6 +45,7 @@ impl OrderMatcher for OrderMatcherFifo {
             id: order_id.clone(),
             unfilled: amount.clone(),
         };
+        
         let mut makers: Vec<(OrderId, Decimal)> = Vec::new(); //Decimal = filled
         let mut page_to_remove = None;
 
@@ -114,14 +115,14 @@ impl OrderMatcher for OrderMatcherFifo {
 
         // If taker isn't fully absorbed, insert order
         if order.unfilled > Decimal::zero() {
-            orderbook.insert_limit(*order_id, side, *price, order.unfilled);
+            orderbook.insert_limit(order.clone(), side, *price);
         }
         
         //Match whether any orders have been matched at all
         match order.unfilled == *amount {
             true => None,
             false => Some(Match {
-                taker: order.id.clone(),
+                taker: order.id,
                 makers,
             }),
         }

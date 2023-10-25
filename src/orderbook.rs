@@ -57,7 +57,6 @@ pub struct Orderbook {
     /// Index for quickly looking up on which price level an order is sitting at
     /// Used for efficiently resolving order book pages from order ids
     pub orders_index: HashMap<OrderId, Decimal>,
-    order_matcher: OrderMatcherFifo,
 }
 
 /// Struct holding details of an order inside the orderbook
@@ -106,7 +105,6 @@ impl Orderbook {
             orders_ask: BTreeMap::<Decimal, OrderbookPage>::new(),
             orders_bid: BTreeMap::<Decimal, OrderbookPage>::new(),
             orders_index: HashMap::<OrderId, Decimal>::new(),
-            order_matcher: OrderMatcherFifo {},
         }
     }
 
@@ -219,61 +217,34 @@ impl Orderbook {
     /// order matcher
     pub fn insert_try_exec_limit(
         &mut self,
-        order_id: &OrderId,
+        order: Order,
         side: AskOrBid,
         price: &Decimal,
-        size: &Decimal,
     ) -> InsertLimitResult {
-        let order_id = order_id.clone();
-        let size = size.clone();
-        let price = price.clone();
-
-        /// Insert limit order
+        // Insert limit order
         if let InsertLimitResult::OrderDataInvalid =
-            self.insert_limit(order_id, side.clone(), price, size)
+            self.insert_limit(order, side.clone(), *price)
         {
             return InsertLimitResult::OrderDataInvalid;
         }
-
-        match self.can_match() {
-            true => {
-                // if let Some(result) = self
-                //     .order_matcher
-                //     .match_limit(self, &order_id, side, &price, &size)
-                // {
-                //     InsertLimitResult::PartiallyFilled(
-                //         order_id,
-                //         result.makers.iter().map(|maker| maker.1).sum(),
-                //     )
-                // } else {
-                    InsertLimitResult::OrderDataInvalid
-                // }
-            }
-            false => InsertLimitResult::Success(order_id),
-        }
+    InsertLimitResult::OrderDataInvalid
     }
 
     /// Inserts a new limit order into the
     pub fn insert_limit(
         &mut self,
-        order_id: OrderId,
+        order: Order,
         side: AskOrBid,
-        price: Decimal,
-        size: Decimal,
+        price: Decimal
     ) -> InsertLimitResult {
-        if price <= Decimal::zero() || size <= Decimal::zero() {
+        if price <= Decimal::zero() || order.unfilled <= Decimal::zero() {
             panic!("Order price or amount invalid!");
         }
 
         //Return false if an order with the same id is already inserted into orderbook
-        if self.orders_index.contains_key(&order_id) {
+        if self.orders_index.contains_key(&order.id) {
             panic!("Order with that id already exists");
         }
-
-        let order = Order {
-            id: order_id,
-            unfilled: size,
-        };
 
         let orderbook = match side {
             AskOrBid::Ask => &mut self.orders_ask,
@@ -287,12 +258,12 @@ impl Orderbook {
             .or_insert_with(|| OrderbookPage::new(&order));
 
         // Update index
-        self.orders_index.insert(order_id, price);
+        self.orders_index.insert(order.id, price);
 
         //info!("Inserted order {} at price {}", order_id, price);
         //self.log_best_ask_bid();
 
-        InsertLimitResult::Success(order_id)
+        InsertLimitResult::Success(order.id)
     }
 
     pub fn cancel_limit(&mut self, order_id: &OrderId) -> CancelLimitResult {
@@ -395,8 +366,11 @@ mod orderbook_tests {
         let order_id = order_id.clone();
         let size = size.clone();
         let price = price.clone();
+        let order = Order {
+            id: order_id, unfilled: size
+        };
 
-        orderbook.insert_limit(order_id, side, price, size)
+        orderbook.insert_limit(order, side, price)
     }
 
     #[test]

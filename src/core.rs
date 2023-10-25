@@ -1,24 +1,28 @@
 /// Main module for the exchange prototype
-
 use std::collections::HashMap;
 
-use log::{info};
+use log::info;
+use rust_decimal::Decimal;
 
 use crate::inbound_http_server::InboundHttpServer;
 use crate::inbound_server::{InboundMessage, InboundServer, MessageType};
-use crate::orderbook::{CancelLimitResult, Orderbook};
+use crate::order_matcher::OrderMatcher;
+use crate::order_matcher_fifo::OrderMatcherFifo;
+use crate::orderbook::{CancelLimitResult, InsertLimitResult, Order, Orderbook};
 use crate::symbol::Symbol;
 use crate::OrderId;
 use json::JsonValue;
 
 /// Struct holding all all exchange data
-/// 
-/// 
+///
+///
 pub struct ExchangeCore {
     /// Mapping between symbol and orderbook
     /// Used by the handler for incoming messages to look up the correct
     /// orderbook for a given symbol
     orderbooks: HashMap<Symbol, Orderbook>,
+
+    order_matcher: Box<dyn OrderMatcher>,
 
     /// Mapping between OrderId and Symbol, used for lookup and cancel messages
     orderbook_id_lookup: HashMap<OrderId, Symbol>,
@@ -39,6 +43,7 @@ impl ExchangeCore {
             orderbooks,
             last_order_id: 0,
             orderbook_id_lookup,
+            order_matcher: Box::new(OrderMatcherFifo::new()),
         }
     }
 
@@ -72,17 +77,24 @@ impl ExchangeCore {
 
                         self.last_order_id += 1;
 
-                        let limit_result = orderbook.insert_try_exec_limit(
+                        let limit_result = match self.order_matcher.match_limit(
+                            orderbook,
                             &self.last_order_id,
-                            side.clone(),
+                            *side,
                             &price,
                             &amount,
-                        );
-
-                        if limit_result.is_success() {
-                            self.orderbook_id_lookup
-                                .insert(self.last_order_id, symbol.clone());
-                        }
+                        ) {
+                            Some(result) => {
+                                let amount_filled: Decimal = result.makers.iter().map(|item| item.1).sum();
+                                // Order fully filled
+                                if amount_filled == amount {
+                                    InsertLimitResult::FullyFilled
+                                } else {
+                                    InsertLimitResult::PartiallyFilled(self.last_order_id, amount - amount_filled)
+                                }
+                            }
+                            None => InsertLimitResult::Success(self.last_order_id),
+                        };
 
                         JsonValue::from(limit_result).to_string()
                     }
@@ -93,7 +105,8 @@ impl ExchangeCore {
             MessageType::CancelLimitOrder => match msg.order_id {
                 Some(id) => match self.orderbook_id_lookup.get_mut(&id) {
                     Some(symbol) => {
-                        let limit_result = self.orderbooks.get_mut(symbol).unwrap().cancel_limit(&id);
+                        let limit_result =
+                            self.orderbooks.get_mut(symbol).unwrap().cancel_limit(&id);
                         if let CancelLimitResult::Success = limit_result {
                             self.orderbook_id_lookup.remove(&id);
                         }
