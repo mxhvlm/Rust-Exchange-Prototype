@@ -1,8 +1,9 @@
+use std::collections::BTreeMap;
+
 use crate::order_matcher::{Match, OrderMatcher};
-use crate::orderbook::{Order, Orderbook};
+use crate::orderbook::{Order, Orderbook, OrderbookPage};
 use crate::symbol::AskOrBid;
 use crate::OrderId;
-
 
 use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
@@ -12,6 +13,17 @@ pub struct OrderMatcherFifo {}
 impl OrderMatcherFifo {
     pub fn new() -> OrderMatcherFifo {
         OrderMatcherFifo {}
+    }
+}
+
+fn delete_marked_page (page_to_remove: Option<Decimal>, orderbook_maker: &mut BTreeMap<Decimal, OrderbookPage>) {
+    if let Some(page_to_remove) = page_to_remove {
+        if let Some(page) = orderbook_maker.get(&page_to_remove) {
+            //Delete page when empty
+            if page.orders.is_empty() {
+                orderbook_maker.remove(&page_to_remove);
+            }
+        }
     }
 }
 
@@ -37,7 +49,8 @@ impl OrderMatcher for OrderMatcherFifo {
         let mut page_to_remove = None;
 
         'page_loop: loop {
-            let mut tuple = match side {
+            // Get matchable orders book pages
+            let mut matchable_pages = match side {
                 AskOrBid::Bid => orderbook_maker
                     .iter_mut()
                     .find(|(page_price, _)| *page_price <= price),
@@ -47,60 +60,53 @@ impl OrderMatcher for OrderMatcherFifo {
                     .find(|(page_price, _)| *page_price >= price),
             };
 
-            if let Some((page_price, ref mut page)) = tuple {
+            // Orderbook still contains matchable pages, match page
+            if let Some((page_price, ref mut page)) = matchable_pages {
                 'order_loop: loop {
+                    // Order fully matched, break
                     if order.unfilled == Decimal::zero() {
-                        //Order fully matched
                         break 'page_loop;
                     }
 
+                    // Page still contains matchable orders, do the matching
                     if let Some(mut maker_entry) = page.orders.entries().next() {
                         let maker_order = maker_entry.get_mut();
+
+                        // Maker order fully absorbs taker order
                         if maker_order.unfilled > order.unfilled {
-                            //Maker can filly absorb the (remaining) order
                             maker_order.unfilled -= order.unfilled;
                             page.amount -= order.unfilled;
                             makers.push((maker_order.id, order.unfilled));
 
-                            order.unfilled = Decimal::from(0);
+                            order.unfilled = Decimal::ZERO;
                         } else {
+                            // Maker order partially absorbs taker order
                             order.unfilled -= maker_order.unfilled;
                             page.amount -= maker_order.unfilled; //page amount can get negative
                             makers.push((maker_order.id, maker_order.unfilled));
 
+                            // Remove now empty taker order
                             orderbook.orders_index.remove(&maker_order.id);
-
                             maker_entry.remove();
-                            page_to_remove = Some(page_price.clone());
                         }
                     } else {
-                        //No more orders left on page
+                        //No more orders left on page, mark page for deletion
+                        page_to_remove = Some(page_price.clone());
                         break 'order_loop;
                     }
                 }
             } else {
-                break 'page_loop; //No pages left
+                //No pages left
+                break 'page_loop;
             }
-
-            //Delete page in case no orders are left
-            if let Some(page_to_remove) = page_to_remove {
-                if let Some(page) = orderbook_maker.get(&page_to_remove) {
-                    //Delete page when empty
-                    if page.orders.is_empty() {
-                        orderbook_maker.remove(&page_to_remove);
-                    }
-                }
-            }
-        }
-        if let Some(page_to_remove) = page_to_remove {
-            if let Some(page) = orderbook_maker.get(&page_to_remove) {
-                //Delete page when empty
-                if page.orders.is_empty() {
-                    orderbook_maker.remove(&page_to_remove);
-                }
-            }
+            //Delete marked page
+           delete_marked_page(page_to_remove, orderbook_maker);
         }
 
+        // Delete (last) marked page
+        delete_marked_page(page_to_remove, orderbook_maker);
+
+        //
         if order.unfilled > Decimal::zero() {
             orderbook._insert_limit(order.clone(), side, price.clone());
         }
@@ -134,19 +140,18 @@ mod tests {
     use crate::order_matcher::OrderMatcher;
     use crate::order_matcher_fifo::OrderMatcherFifo;
     use crate::orderbook::Orderbook;
+    use crate::symbol::AskOrBid::Ask;
     use crate::symbol::{AskOrBid, Symbol};
+    use log::info;
+    use rand::distributions::Distribution;
+    use rand::prelude::StdRng;
+    use rand::rngs::ThreadRng;
+    use rand::{thread_rng, Rng, RngCore, SeedableRng};
+    use rand_distr::Normal;
     use rust_decimal::prelude::ToPrimitive;
     use rust_decimal::Decimal;
-    use rand::{thread_rng, RngCore, SeedableRng, Rng};
-    use std::time::{Instant, Duration};
-    use rand::distributions::{Distribution};
-    use rand::rngs::ThreadRng;
     use std::convert::TryInto;
-    use rand::prelude::StdRng;
-    use log::info;
-    use crate::symbol::AskOrBid::Ask;
-    use rand_distr::Normal;
-
+    use std::time::{Duration, Instant};
 
     #[test]
     fn test_match_limit_single_price_level() {
@@ -478,8 +483,29 @@ mod tests {
         let mut order_id = 6;
         // matcher.match_limit(&mut orderbook, &0, AskOrBid::Bid, &Decimal::from(6), &Decimal::ONE);order_id += 1;
         // matcher.match_limit(&mut orderbook, &1, AskOrBid::Ask, &Decimal::from(1), &Decimal::ONE);order_id += 1;
-        matcher.match_limit(&mut orderbook, &2, AskOrBid::Bid, &Decimal::from(7), &Decimal::ONE);order_id += 1;
-        matcher.match_limit(&mut orderbook, &3, AskOrBid::Ask, &Decimal::from(7), &Decimal::ONE);order_id += 1;
-        matcher.match_limit(&mut orderbook, &7, AskOrBid::Ask, &Decimal::from(6), &Decimal::ONE);order_id += 1;
+        matcher.match_limit(
+            &mut orderbook,
+            &2,
+            AskOrBid::Bid,
+            &Decimal::from(7),
+            &Decimal::ONE,
+        );
+        order_id += 1;
+        matcher.match_limit(
+            &mut orderbook,
+            &3,
+            AskOrBid::Ask,
+            &Decimal::from(7),
+            &Decimal::ONE,
+        );
+        order_id += 1;
+        matcher.match_limit(
+            &mut orderbook,
+            &7,
+            AskOrBid::Ask,
+            &Decimal::from(6),
+            &Decimal::ONE,
+        );
+        order_id += 1;
     }
 }

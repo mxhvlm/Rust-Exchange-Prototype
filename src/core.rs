@@ -46,7 +46,7 @@ impl ExchangeCore {
         }
     }
 
-    //TODO: When implementing multithreading, we need to be able to route orderflow based on symbol as quickly as possible
+    // Main handler for executing incoming orders
     fn process_inbound_message(&mut self, msg: &mut InboundMessage) -> String {
         match msg.message_type {
             MessageType::PlaceLimitOrder => {
@@ -66,6 +66,7 @@ impl ExchangeCore {
                             &amount,
                         );
 
+                        // Insert remaining order
                         if result.is_success() {
                             self.orderbook_id_lookup
                                 .insert(self.last_order_id, symbol.clone());

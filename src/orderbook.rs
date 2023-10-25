@@ -5,6 +5,7 @@ use log::info;
 use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
 
+use crate::order_matcher::OrderMatcher;
 use crate::symbol::{AskOrBid, Symbol};
 use crate::OrderId;
 
@@ -272,7 +273,19 @@ impl Orderbook {
         }
 
         match self.can_match() {
-            true => InsertLimitResult::PartiallyFilled(order_id, Decimal::default()),
+            true => {
+                // if let Some(result) = self
+                //     .order_matcher
+                //     .match_limit(self, &order_id, side, &price, &size)
+                // {
+                //     InsertLimitResult::PartiallyFilled(
+                //         order_id,
+                //         result.makers.iter().map(|maker| maker.1).sum(),
+                //     )
+                // } else {
+                    InsertLimitResult::OrderDataInvalid
+                // }
+            }
             false => InsertLimitResult::Success(order_id),
         }
     }
@@ -365,7 +378,6 @@ impl Orderbook {
 
 #[cfg(test)]
 mod orderbook_tests {
-    
 
     use rand::{RngCore, SeedableRng};
 
