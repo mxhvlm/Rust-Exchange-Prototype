@@ -5,6 +5,7 @@ use log::info;
 use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
 
+use crate::order_matcher::OrderMatcher;
 use crate::symbol::{AskOrBid, Symbol};
 use crate::OrderId;
 
@@ -12,9 +13,8 @@ use crate::order_matcher_fifo::OrderMatcherFifo;
 use core::fmt;
 use linked_hash_map::LinkedHashMap;
 
-//TODO: Handle Decimal scales
-
 //TODO: Implement InsertLimitResult as Result<>?
+/// Different result states a limit order execution can have
 #[derive(PartialEq, Debug)]
 pub enum InsertLimitResult {
     Success(OrderId),
@@ -23,29 +23,290 @@ pub enum InsertLimitResult {
     OrderDataInvalid,
 }
 
+/// Different result states a cancel order execution can have
 #[derive(PartialEq, Debug)]
 pub enum CancelLimitResult {
     Success,
     OrderIdNotFound,
 }
 
+/// Struct containing individual orders for a given discrete price level
 pub struct OrderbookPage {
+    /// Linked hashmap gives us a fast datastructure for storing orders while keeping 
+    /// track of order sequence
     pub orders: LinkedHashMap<OrderId, Order>,
+
+    /// Cumulative value of orders sitting at the Page's price level
     pub amount: Decimal,
 }
 
+/// The orderbook. Contains orders for bid and ask side, as well as the order matcher
+/// used for matching orders on the book.
+/// 
+/// Orderbook pages for each side are stored in BTreeMaps, this allows us to store
+/// and access large amounts of pages efficiently
 pub struct Orderbook {
     symbol: Symbol,
+
+    /// BTree of pages for the ask side
     pub orders_ask: BTreeMap<Decimal, OrderbookPage>,
+
+    /// BTree of pages for the bid side
     pub orders_bid: BTreeMap<Decimal, OrderbookPage>,
-    pub orders_index: HashMap<OrderId, Decimal>, //TODO: Find a way to always guarantee that orders and index are consistent
+
+    /// Index for quickly looking up on which price level an order is sitting at
+    /// Used for efficiently resolving order book pages from order ids
+    pub orders_index: HashMap<OrderId, Decimal>,
     order_matcher: OrderMatcherFifo,
 }
 
+/// Struct holding details of an order inside the orderbook
 #[derive(Clone, PartialEq, Debug)]
 pub struct Order {
     pub id: OrderId,
     pub unfilled: Decimal,
+}
+
+impl OrderbookPage {
+    /// Lazy initialized a new ``OrderBookPage`` from a limit order in case the 
+    /// limit sits at a price level / page that doesn't exist yet
+    fn new(order: &Order) -> OrderbookPage {
+        let mut orders = LinkedHashMap::<OrderId, Order>::new();
+        let amount = order.unfilled;
+        orders.insert(order.id, order.clone());
+        OrderbookPage { orders, amount }
+    }
+
+    /// Removes a order with a given id
+    /// and adjusts the remaining cumulative for the price level
+    fn remove(&mut self, order_id: &OrderId) -> Option<Order> {
+        if let Some(removed) = self.orders.remove(order_id) {
+            self.amount -= removed.unfilled;
+            return Some(removed);
+        }
+        None
+    }
+
+    /// Gets an order by id
+    fn get(&self, order_id: &OrderId) -> Option<&Order> {
+        self.orders.get(order_id)
+    }
+
+
+    fn insert(&mut self, order: &Order) {
+        self.orders.insert(order.id, order.clone());
+        self.amount += order.unfilled;
+    }
+}
+
+impl Orderbook {
+    pub fn new(symbol: Symbol) -> Orderbook {
+        Orderbook {
+            symbol,
+            orders_ask: BTreeMap::<Decimal, OrderbookPage>::new(),
+            orders_bid: BTreeMap::<Decimal, OrderbookPage>::new(),
+            orders_index: HashMap::<OrderId, Decimal>::new(),
+            order_matcher: OrderMatcherFifo {},
+        }
+    }
+
+    pub fn get_best_ask(&self) -> Option<Decimal> {
+        self.orders_ask.iter().next().map(|(price, _)| *price)
+    }
+
+    pub fn get_best_bid(&self) -> Option<Decimal> {
+        self.orders_bid.iter().rev().next().map(|(price, _)| *price)
+    }
+
+    pub fn get_best_price_for_side(&self, side: AskOrBid) -> Option<Decimal> {
+        match side {
+            AskOrBid::Ask => self.get_best_ask(),
+            AskOrBid::Bid => self.get_best_bid(),
+        }
+    }
+
+    pub fn can_be_matched_against(&self, new_side: AskOrBid, new_price: &Decimal) -> bool {
+        match new_side {
+            AskOrBid::Bid => self
+                .orders_ask
+                .iter()
+                .any(|(page_price, _)| page_price <= new_price),
+            AskOrBid::Ask => self
+                .orders_bid
+                .iter()
+                .rev()
+                .any(|(page_price, _)| page_price >= new_price),
+        }
+    }
+
+    pub fn get_best_page_for_price(
+        &mut self,
+        _side: &AskOrBid,
+        _price: &Decimal,
+    ) -> Option<OrderbookPage> {
+        todo!()
+    }
+
+    pub fn contains_order(&self, order_id: &OrderId) -> bool {
+        self.orders_index.contains_key(order_id)
+    }
+
+    /// Determins whether a given price currently sits on the bid or ask side
+    /// Returns None if either no orders are in the orderbook or if the orderbook is in an inconsistent state
+    pub fn get_side_for_price(&self, price: &Decimal) -> Option<AskOrBid> {
+        //Orderbook is in an inconsistent state eg. get_best_buy() >= get_best_bid()
+        if self.can_match() {
+            return None;
+        }
+        if let Some(best_ask) = self.get_best_ask() {
+            if *price >= best_ask {
+                return Some(AskOrBid::Ask);
+            }
+        }
+        if let Some(best_bid) = self.get_best_bid() {
+            if *price <= best_bid {
+                return Some(AskOrBid::Bid);
+            }
+        }
+        None
+    }
+
+    /// Get's an order by order id
+    pub fn get_order_mut(&mut self, order_id: &OrderId) -> Option<&mut Order> {
+        if let Some(price) = self.orders_index.get(order_id) {
+            if let Some(side) = self.get_side_for_price(&price) {
+                let orderbook = match side {
+                    AskOrBid::Ask => &mut self.orders_ask,
+                    AskOrBid::Bid => &mut self.orders_bid,
+                };
+
+                if let Some(order_page) = orderbook.get_mut(&price) {
+                    return order_page.orders.get_mut(order_id);
+                }
+            }
+        }
+        return None;
+    }
+
+    /// Returns whether the book is in a state where orders can be matched
+    pub fn can_match(&self) -> bool {
+        let best_ask = self.get_best_ask();
+        let best_bid = self.get_best_bid();
+
+        if let Some(best_ask) = best_ask {
+            if let Some(best_bid) = best_bid {
+                return best_bid >= best_ask;
+            }
+        }
+        false
+    }
+
+    /// Prints the current best ask and bid price levels
+    /// 
+    /// In case no order exists on one of the sides, -1 is returned.
+    fn log_best_ask_bid(&self) {
+        info!(
+            "Best Ask: {}",
+            self.get_best_ask().unwrap_or(Decimal::from(-1))
+        );
+        info!(
+            "Best Bid: {}",
+            self.get_best_bid().unwrap_or(Decimal::from(-1))
+        );
+    }
+
+    /// Inserts a new limit order into the book and then tries to execute the
+    /// order matcher
+    pub fn insert_try_exec_limit(
+        &mut self,
+        order_id: &OrderId,
+        side: AskOrBid,
+        price: &Decimal,
+        size: &Decimal,
+    ) -> InsertLimitResult {
+        let order_id = order_id.clone();
+        let size = size.clone();
+        let price = price.clone();
+
+        /// Insert limit order
+        if let InsertLimitResult::OrderDataInvalid =
+            self.insert_limit(order_id, side.clone(), price, size)
+        {
+            return InsertLimitResult::OrderDataInvalid;
+        }
+
+        // Try to execute limit order
+        self.order_matcher.match_limit( self, &order_id, side, &price, &price);
+
+        match self.can_match() {
+            true => InsertLimitResult::PartiallyFilled(order_id, Decimal::default()),
+            false => InsertLimitResult::Success(order_id),
+        }
+    }
+
+    /// Inserts a new limit order into the
+    pub fn insert_limit(
+        &mut self,
+        order_id: OrderId,
+        side: AskOrBid,
+        price: Decimal,
+        size: Decimal,
+    ) -> InsertLimitResult {
+        if price <= Decimal::zero() || size <= Decimal::zero() {
+            panic!("Order price or amount invalid!");
+        }
+
+        //Return false if an order with the same id is already inserted into orderbook
+        if self.orders_index.contains_key(&order_id) {
+            panic!("Order with that id already exists");
+        }
+
+        let order = Order {
+            id: order_id,
+            unfilled: size,
+        };
+
+        let orderbook = match side {
+            AskOrBid::Ask => &mut self.orders_ask,
+            AskOrBid::Bid => &mut self.orders_bid,
+        };
+
+        // Insert the limit order into the book
+        orderbook
+            .entry(price)
+            .and_modify(|page| page.insert(&order))
+            .or_insert_with(|| OrderbookPage::new(&order));
+
+        // Update index
+        self.orders_index.insert(order_id, price);
+
+        //info!("Inserted order {} at price {}", order_id, price);
+        //self.log_best_ask_bid();
+
+        InsertLimitResult::Success(order_id)
+    }
+
+    pub fn cancel_limit(&mut self, order_id: &OrderId) -> CancelLimitResult {
+        if let Some(price) = self.orders_index.get(order_id) {
+            if let Some(side) = self.get_side_for_price(price) {
+                let orderbook = match side {
+                    AskOrBid::Ask => &mut self.orders_ask,
+                    AskOrBid::Bid => &mut self.orders_bid,
+                };
+                if let Some(orderbook_page) = orderbook.get_mut(price) {
+                    if let Some(_removed) = orderbook_page.remove(order_id) {
+                        if orderbook_page.amount == Decimal::from(0) {
+                            orderbook.remove(price);
+                        }
+                        return CancelLimitResult::Success;
+                    }
+                }
+            } else {
+                panic!("cancel_limit called in an inconsistent state!")
+            }
+        }
+        CancelLimitResult::OrderIdNotFound
+    }
 }
 
 impl InsertLimitResult {
@@ -107,262 +368,6 @@ impl fmt::Display for CancelLimitResult {
     }
 }
 
-impl OrderbookPage {
-    fn new(order: &Order) -> OrderbookPage {
-        let mut orders = LinkedHashMap::<OrderId, Order>::new();
-        let amount = order.unfilled;
-        orders.insert(order.id, order.clone());
-        OrderbookPage { orders, amount }
-    }
-
-    fn remove(&mut self, order_id: &OrderId) -> Option<Order> {
-        if let Some(removed) = self.orders.remove(order_id) {
-            self.amount -= removed.unfilled;
-            return Some(removed);
-        }
-        None
-    }
-
-    fn get(&self, order_id: &OrderId) -> Option<&Order> {
-        self.orders.get(order_id)
-    }
-
-    fn insert(&mut self, order: &Order) {
-        self.orders.insert(order.id, order.clone());
-        self.amount += order.unfilled;
-    }
-}
-
-impl Orderbook {
-    pub fn new(symbol: Symbol) -> Orderbook {
-        Orderbook {
-            symbol,
-            orders_ask: BTreeMap::<Decimal, OrderbookPage>::new(),
-            orders_bid: BTreeMap::<Decimal, OrderbookPage>::new(),
-            orders_index: HashMap::<OrderId, Decimal>::new(),
-            order_matcher: OrderMatcherFifo {},
-        }
-    }
-
-    pub fn get_best_ask(&self) -> Option<Decimal> {
-        self.orders_ask.iter().next().map(|(price, _)| *price)
-    }
-
-    pub fn get_best_bid(&self) -> Option<Decimal> {
-        self.orders_bid.iter().rev().next().map(|(price, _)| *price)
-    }
-
-    pub fn get_best_price_for_side(&self, side: AskOrBid) -> Option<Decimal> {
-        match side {
-            AskOrBid::Ask => self.get_best_ask(),
-            AskOrBid::Bid => self.get_best_bid(),
-        }
-    }
-
-    pub fn can_be_matched_against(&self, new_side: AskOrBid, new_price: &Decimal) -> bool {
-        match new_side {
-            AskOrBid::Bid => self
-                .orders_ask
-                .iter()
-                .any(|(page_price, _)| page_price <= new_price),
-            AskOrBid::Ask => self
-                .orders_bid
-                .iter()
-                .rev()
-                .any(|(page_price, _)| page_price >= new_price),
-        }
-    }
-
-    pub fn get_best_page_for_price(
-        &mut self,
-        _side: &AskOrBid,
-        _price: &Decimal,
-    ) -> Option<OrderbookPage> {
-        todo!()
-    }
-
-    pub fn contains_order(&self, order_id: &OrderId) -> bool {
-        self.orders_index.contains_key(order_id)
-    }
-
-    /**
-    Returns None if either no orders are in the orderbook or if the orderbook is in an inconsistent state
-     */
-    pub fn get_side_for_price(&self, price: &Decimal) -> Option<AskOrBid> {
-        //Orderbook is in an inconsistent state eg. get_best_buy() >= get_best_bid()
-        if self.can_match() {
-            return None;
-        }
-        if let Some(best_ask) = self.get_best_ask() {
-            if *price >= best_ask {
-                return Some(AskOrBid::Ask);
-            }
-        }
-        if let Some(best_bid) = self.get_best_bid() {
-            if *price <= best_bid {
-                return Some(AskOrBid::Bid);
-            }
-        }
-        None
-    }
-
-    pub fn get_order_mut(&mut self, order_id: &OrderId) -> Option<&mut Order> {
-        if let Some(price) = self.orders_index.get(order_id) {
-            if let Some(side) = self.get_side_for_price(&price) {
-                let orderbook = match side {
-                    AskOrBid::Ask => &mut self.orders_ask,
-                    AskOrBid::Bid => &mut self.orders_bid,
-                };
-
-                if let Some(order_page) = orderbook.get_mut(&price) {
-                    return order_page.orders.get_mut(order_id);
-                }
-            }
-        }
-        return None;
-    }
-
-    /*pub fn get_unfilled(&self, order_id: &OrderId) -> Option<Decimal> {
-        match self.contains_order(order_id) {
-            true => {
-                let page = self.orders_index.
-            },
-            false => None
-        }
-    }*/
-
-    pub fn can_match(&self) -> bool {
-        let best_ask = self.get_best_ask();
-        let best_bid = self.get_best_bid();
-
-        if let Some(best_ask) = best_ask {
-            if let Some(best_bid) = best_bid {
-                return best_bid >= best_ask;
-            }
-        }
-        false
-    }
-
-    fn log_best_ask_bid(&self) {
-        info!(
-            "Best Ask: {}",
-            self.get_best_ask().unwrap_or(Decimal::from(-1))
-        );
-        info!(
-            "Best Bid: {}",
-            self.get_best_bid().unwrap_or(Decimal::from(-1))
-        );
-    }
-
-    pub fn insert_try_exec_limit(
-        &mut self,
-        order_id: &OrderId,
-        side: AskOrBid,
-        price: &Decimal,
-        size: &Decimal,
-    ) -> InsertLimitResult {
-        let order_id = order_id.clone();
-        let size = size.clone();
-        let price = price.clone();
-
-        if let InsertLimitResult::OrderDataInvalid =
-            self.insert_limit(order_id, side.clone(), price, size)
-        {
-            return InsertLimitResult::OrderDataInvalid;
-        }
-
-        match self.can_match() {
-            true => InsertLimitResult::PartiallyFilled(order_id, Decimal::default()),
-            false => InsertLimitResult::Success(order_id),
-        }
-    }
-
-    pub fn insert_limit(
-        &mut self,
-        order_id: OrderId,
-        side: AskOrBid,
-        price: Decimal,
-        size: Decimal,
-    ) -> InsertLimitResult {
-        if price <= Decimal::zero() || size <= Decimal::zero() {
-            panic!("Order price or amount invalid!");
-        }
-
-        //Return false if an order with the same id is already inserted into orderbook
-        if self.orders_index.contains_key(&order_id) {
-            panic!("Order with that id already exists");
-        }
-
-        let order = Order {
-            id: order_id,
-            unfilled: size,
-        };
-
-        let orderbook = match side {
-            AskOrBid::Ask => &mut self.orders_ask,
-            AskOrBid::Bid => &mut self.orders_bid,
-        };
-
-        orderbook
-            .entry(price)
-            .and_modify(|page| page.insert(&order))
-            .or_insert_with(|| OrderbookPage::new(&order));
-
-        self.orders_index.insert(order_id, price);
-
-        info!("Inserted order {} at price {}", order_id, price);
-        self.log_best_ask_bid();
-
-        InsertLimitResult::Success(order_id)
-    }
-
-    pub fn _insert_limit(&mut self, order: Order, side: AskOrBid, price: Decimal) {
-        if self.orders_index.contains_key(&order.id) {
-            panic!("order with the same id already in index!");
-        }
-        if order.unfilled <= Decimal::zero() {
-            panic!("order with negative amount detected!");
-        }
-
-        let orderbook = match side {
-            AskOrBid::Ask => &mut self.orders_ask,
-            AskOrBid::Bid => &mut self.orders_bid,
-        };
-
-        orderbook
-            .entry(price)
-            .and_modify(|page| page.insert(&order))
-            .or_insert_with(|| OrderbookPage::new(&order));
-
-        self.orders_index.insert(order.id, price);
-
-        info!("Inserted order {} at price {}", order.id, price);
-        self.log_best_ask_bid();
-    }
-
-    pub fn cancel_limit(&mut self, order_id: &OrderId) -> CancelLimitResult {
-        if let Some(price) = self.orders_index.get(order_id) {
-            if let Some(side) = self.get_side_for_price(price) {
-                let orderbook = match side {
-                    AskOrBid::Ask => &mut self.orders_ask,
-                    AskOrBid::Bid => &mut self.orders_bid,
-                };
-                if let Some(orderbook_page) = orderbook.get_mut(price) {
-                    if let Some(_removed) = orderbook_page.remove(order_id) {
-                        if orderbook_page.amount == Decimal::from(0) {
-                            orderbook.remove(price);
-                        }
-                        return CancelLimitResult::Success;
-                    }
-                }
-            } else {
-                panic!("cancel_limit called in an inconsistent state!")
-            }
-        }
-        CancelLimitResult::OrderIdNotFound
-    }
-}
-
 #[cfg(test)]
 mod orderbook_tests {
     
@@ -388,7 +393,7 @@ mod orderbook_tests {
 
     #[test]
     fn test_can_match_against() {
-        let mut orderbook = Orderbook::new(Symbol::ETH);
+        let mut orderbook = Orderbook::new(Symbol::Asset2);
         assert_eq!(
             orderbook.can_be_matched_against(AskOrBid::Ask, &Decimal::zero()),
             false
@@ -489,7 +494,7 @@ mod orderbook_tests {
 
     #[test]
     fn test_orderbook_insert_limit() {
-        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let mut orderbook = Orderbook::new(Symbol::Asset1);
         let mut id = 16u64;
         let price = Decimal::from(100);
         let unfilled = Decimal::from(16);
@@ -590,7 +595,7 @@ mod orderbook_tests {
 
     #[test]
     fn test_get_best_ask_bid() {
-        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let mut orderbook = Orderbook::new(Symbol::Asset1);
         let mut id = 0u64;
         let amount = Decimal::from(50);
 
@@ -626,7 +631,7 @@ mod orderbook_tests {
 
     #[test]
     fn test_contains_order() {
-        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let mut orderbook = Orderbook::new(Symbol::Asset1);
         let id = 1234u64;
 
         assert_eq!(orderbook.contains_order(&0), false);
@@ -644,7 +649,7 @@ mod orderbook_tests {
 
     #[test]
     fn test_can_match() {
-        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let mut orderbook = Orderbook::new(Symbol::Asset1);
         let amount = Decimal::from(3945);
 
         assert_eq!(orderbook.can_match(), false);
@@ -680,7 +685,7 @@ mod orderbook_tests {
 
     #[test]
     fn test_get_orderbook_side_for_price() {
-        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let mut orderbook = Orderbook::new(Symbol::Asset1);
         let price_ask = Decimal::from(510);
         let price_bid = Decimal::from(505);
         let amount = Decimal::from(3945);
@@ -723,7 +728,7 @@ mod orderbook_tests {
 
     #[test]
     fn test_get_order_mut() {
-        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let mut orderbook = Orderbook::new(Symbol::Asset1);
         let price = Decimal::from(505);
         let amount = Decimal::from(3945);
 
@@ -744,7 +749,7 @@ mod orderbook_tests {
 
     #[test]
     fn test_cancel_limit() {
-        let mut orderbook = Orderbook::new(Symbol::BTC);
+        let mut orderbook = Orderbook::new(Symbol::Asset1);
 
         assert_eq!(
             orderbook.cancel_limit(&0),

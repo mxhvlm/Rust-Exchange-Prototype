@@ -33,7 +33,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let mut rng_buy = StdRng::seed_from_u64(42);
     let mut rng_sell = StdRng::seed_from_u64(41);
 
-    let mut orderbook = Orderbook::new(Symbol::ETH);
+    let mut orderbook = Orderbook::new(Symbol::Asset2);
     let matcher = OrderMatcherFifo::new();
 
     let spread = 5.;

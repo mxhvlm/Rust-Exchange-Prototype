@@ -18,6 +18,10 @@ pub struct InboundHttpServer {
     tx: Sender<AsyncMessage<InboundMessage>>,
 }
 
+/// Handler for incoming data on a TCP connection.
+/// 
+/// Reads the message from the raw ``TCPStream`` and passes the parsed message
+/// into the channel specified by ``tx``.
 fn handle_connection(mut stream: TcpStream, tx: Sender<AsyncMessage<InboundMessage>>) {
     let mut buffer = [0; REQ_BUFFER_SIZE];
     let bytes_read = stream.read(&mut buffer).unwrap();
@@ -57,6 +61,8 @@ fn handle_connection(mut stream: TcpStream, tx: Sender<AsyncMessage<InboundMessa
     stream.flush().unwrap();
 }
 
+/// Parses binary read from a TCPStream into an InboundMessage or None, in case
+/// there were any parsing errors.
 fn parse_request(bytes: Vec<u8>) -> Option<InboundMessage> {
     let request = String::from_utf8_lossy(&bytes[0..bytes.len()]).to_string();
 
@@ -91,6 +97,8 @@ fn parse_request(bytes: Vec<u8>) -> Option<InboundMessage> {
 }
 
 impl InboundServer for InboundHttpServer {
+    /// Creates new instance of ``InboundServer`` as well as a receiver for the 
+    /// async channel into which incomming messages are getting pushed
     fn new() -> (Receiver<AsyncMessage<InboundMessage>>, Self) {
         info!("Initializing inbound http server...");
         let (tx, rx) = mpsc::channel::<AsyncMessage<InboundMessage>>();
@@ -98,6 +106,7 @@ impl InboundServer for InboundHttpServer {
         (rx, InboundHttpServer { tx })
     }
 
+    /// Runs the server loop
     fn run(self) {
         info!("Starting inbound http server...");
 

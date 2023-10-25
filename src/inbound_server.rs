@@ -10,23 +10,30 @@ use rust_decimal::Decimal;
 
 use crate::symbol::{AskOrBid, Symbol};
 
-pub trait InboundServer {
-    fn new() -> (Receiver<AsyncMessage<InboundMessage>>, Self);
-    fn run(self);
-}
-
+/// Struct representing an async channel command of type T,
+/// as well as an async channel sender that can be used to reply to the command.
+/// 
+/// Used by the inbound server to pass received messages onto the orderbook / matching 
+/// thread.
 pub struct AsyncMessage<T> {
+    /// The message command
     pub cmd: T,
+
+    /// The MPSC channel sender object that can be used to respond to the message.
     pub resp: Sender<String>,
 }
 
-impl<T> AsyncMessage<T> {
-    pub fn new(msg: T) -> (AsyncMessage<T>, Receiver<String>) {
-        let (resp, rx) = mpsc::channel::<String>();
-        (AsyncMessage { cmd: msg, resp }, rx)
-    }
+/// Enum holding all the possible types of inbound exchange / order messages
+/// 
+/// Inbound messages will be parsed into instance of this struct.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum MessageType {
+    PlaceLimitOrder = 1,
+    CancelLimitOrder = 2,
+    PlaceMarketOrder = 3,
 }
 
+/// Struct for an inbound order message.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct InboundMessage {
     pub message_type: MessageType,
@@ -37,21 +44,36 @@ pub struct InboundMessage {
     pub order_id: Option<u64>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum MessageType {
-    PlaceLimitOrder = 1,
-    CancelLimitOrder = 2,
-    PlaceMarketOrder = 3,
+/// Trait representing a runnable inbound server.
+/// 
+/// Received messages are pushed into an async channel.
+pub trait InboundServer {
+    /// Creates new instance of ``InboundServer`` as well as a receiver for the 
+    /// async channel into which incomming messages are getting pushed
+    fn new() -> (Receiver<AsyncMessage<InboundMessage>>, Self);
+
+    /// Runs the server loop
+    fn run(self);
+}
+
+impl<T> AsyncMessage<T> {
+    pub fn new(msg: T) -> (AsyncMessage<T>, Receiver<String>) {
+        let (resp, rx) = mpsc::channel::<String>();
+        (AsyncMessage { cmd: msg, resp }, rx)
+    }
 }
 
 impl MessageType {
-    pub(crate) fn has_amount(&self) -> bool {
+    /// Determins whether the message type holds an amount
+    fn has_amount(&self) -> bool {
         match self {
             MessageType::CancelLimitOrder => false,
             _ => true,
         }
     }
 
+    /// Determins whether the message type holds a concrete price (ex. limit) or
+    /// no price data (ex. market)
     pub fn has_price(&self) -> bool {
         match self {
             MessageType::PlaceLimitOrder => true,
@@ -59,6 +81,9 @@ impl MessageType {
         }
     }
 
+    /// Determins whether the message type holds a specific order id or not.
+    /// 
+    /// Cancel and lookup messages will hold an id while place orders don't 
     pub fn has_order_id(&self) -> bool {
         match self {
             MessageType::CancelLimitOrder => true,
@@ -66,6 +91,9 @@ impl MessageType {
         }
     }
 
+    /// Converts a string to a concrete MessageType.
+    /// 
+    /// In case the string couldn't be parsed, it'll reject the option.
     pub fn from_string(value: &String) -> Option<MessageType> {
         match value.to_lowercase().as_str() {
             "place_limit" => Some(MessageType::PlaceLimitOrder),
@@ -76,6 +104,7 @@ impl MessageType {
     }
 }
 
+/// Implementing 
 impl fmt::Display for MessageType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
@@ -101,18 +130,6 @@ fn opt_from_str_opt<T: FromStr>(value: Option<&String>) -> Option<T> {
 }
 
 impl InboundMessage {
-    pub fn get_dummy() -> InboundMessage {
-        InboundMessage {
-            message_type: MessageType::PlaceLimitOrder,
-            symbol: Some(Symbol::BTC),
-            side: Some(AskOrBid::Ask),
-            limit_price: Some(Decimal::from(512)),
-            amount: Some(Decimal::from(20)),
-            order_id: Some(182349),
-        }
-    }
-
-    //TODO: Research whether HashMap ist the right datatype for small numbers of key,value pairs
     pub fn from_hashmap(map: &HashMap<String, String>) -> Option<InboundMessage> {
         Some(InboundMessage {
             message_type: MessageType::from_string(map.get("action")?)?,

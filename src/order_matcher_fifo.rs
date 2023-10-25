@@ -36,8 +36,10 @@ impl OrderMatcher for OrderMatcherFifo {
         let mut makers: Vec<(OrderId, Decimal)> = Vec::new(); //Decimal = filled
         let mut page_to_remove = None;
 
+        // Iterate over existing pages (discrete price levels) until the order is fully matched
         'page_loop: loop {
-            let mut tuple = match side {
+            // Get price level of and ref to current page
+            let mut pricePageTuple = match side {
                 AskOrBid::Bid => orderbook_maker
                     .iter_mut()
                     .find(|(page_price, _)| *page_price <= price),
@@ -47,39 +49,55 @@ impl OrderMatcher for OrderMatcherFifo {
                     .find(|(page_price, _)| *page_price >= price),
             };
 
-            if let Some((page_price, ref mut page)) = tuple {
+            // In case a current page exists, match against the orders on it with FIFO
+            if let Some((page_price, ref mut page)) = pricePageTuple {
                 'order_loop: loop {
+                    // Stop matching process in case our order is fully matched
                     if order.unfilled == Decimal::zero() {
                         //Order fully matched
                         break 'page_loop;
                     }
 
+                    // Get next maker order on current page by FIFO and match against
+                    // our order
                     if let Some(mut maker_entry) = page.orders.entries().next() {
                         let maker_order = maker_entry.get_mut();
+
+                        //Maker can filly absorb the (remaining) order
                         if maker_order.unfilled > order.unfilled {
-                            //Maker can filly absorb the (remaining) order
+                            // Adjust the maker orders
                             maker_order.unfilled -= order.unfilled;
+
+                            // Adjust amount of assets at current price level
                             page.amount -= order.unfilled;
+
+                            // Add maker to the list of makers that matched our order
                             makers.push((maker_order.id, order.unfilled));
 
                             order.unfilled = Decimal::from(0);
-                        } else {
+                        } else { // Maker order can't fully absorb remaining order
                             order.unfilled -= maker_order.unfilled;
-                            page.amount -= maker_order.unfilled; //page amount can get negative
+
+                            // Adjust amount of assets at current price level
+                            page.amount -= maker_order.unfilled;
                             makers.push((maker_order.id, maker_order.unfilled));
 
+                            // Remove the maker order from the book as it got completely absorbed
+                            // by the taker order.
                             orderbook.orders_index.remove(&maker_order.id);
 
                             maker_entry.remove();
                             page_to_remove = Some(page_price.clone());
                         }
                     } else {
-                        //No more orders left on page
+                        // Continue with next page in case no open orders are left
+                        // on current page.
                         break 'order_loop;
                     }
                 }
             } else {
-                break 'page_loop; //No pages left
+                // No more pages left
+                break 'page_loop;
             }
 
             //Delete page in case no orders are left
@@ -92,6 +110,7 @@ impl OrderMatcher for OrderMatcherFifo {
                 }
             }
         }
+
         if let Some(page_to_remove) = page_to_remove {
             if let Some(page) = orderbook_maker.get(&page_to_remove) {
                 //Delete page when empty
@@ -101,12 +120,14 @@ impl OrderMatcher for OrderMatcherFifo {
             }
         }
 
+        // Insert (remaining) limit order in case our order couldn't fully be absorbed
+        // by the book
         if order.unfilled > Decimal::zero() {
             orderbook._insert_limit(order.clone(), side, price.clone());
         }
-
+        
+        //Match whether any orders have been matched at all
         match order.unfilled == *amount {
-            //Match whether any orders have been matched at all
             true => None,
             false => Some(Match {
                 taker: order.id.clone(),
@@ -150,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_match_limit_single_price_level() {
-        let mut orderbook = Orderbook::new(Symbol::ETH);
+        let mut orderbook = Orderbook::new(Symbol::Asset2);
         let matcher = OrderMatcherFifo::new();
 
         let first_maker_id = 0;
@@ -284,7 +305,7 @@ mod tests {
 
     #[test]
     fn test_match_limit_multi_fill_best_price() {
-        let mut orderbook = Orderbook::new(Symbol::ETH);
+        let mut orderbook = Orderbook::new(Symbol::Asset2);
         let matcher = OrderMatcherFifo::new();
 
         let first_maker_id = 0;
@@ -331,7 +352,7 @@ mod tests {
 
     #[test]
     fn test_match_limit_multi_insert_remaining_amount() {
-        let mut orderbook = Orderbook::new(Symbol::ETH);
+        let mut orderbook = Orderbook::new(Symbol::Asset2);
         let matcher = OrderMatcherFifo::new();
 
         let first_maker_id = 0;
@@ -389,7 +410,7 @@ mod tests {
 
     #[test]
     fn test_match_limit_multi_maker_prices() {
-        let mut orderbook = Orderbook::new(Symbol::ETH);
+        let mut orderbook = Orderbook::new(Symbol::Asset2);
         let matcher = OrderMatcherFifo::new();
 
         let mut order_id = 0;
@@ -472,7 +493,7 @@ mod tests {
 
     #[test]
     fn test_match_endless_loop() {
-        let mut orderbook = Orderbook::new(Symbol::ETH);
+        let mut orderbook = Orderbook::new(Symbol::Asset2);
         let matcher = OrderMatcherFifo::new();
 
         let mut order_id = 6;
