@@ -5,8 +5,8 @@ use std::str::FromStr;
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Symbol {
-    BTC = 1,
-    ETH = 2,
+    Asset1 = 1,
+    Asset2 = 2,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Copy)]
@@ -32,8 +32,8 @@ impl FromStr for Symbol {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "btc" => Ok(Symbol::BTC),
-            "eth" => Ok(Symbol::ETH),
+            "btc" => Ok(Symbol::Asset1),
+            "eth" => Ok(Symbol::Asset2),
             _ => Err(()),
         }
     }

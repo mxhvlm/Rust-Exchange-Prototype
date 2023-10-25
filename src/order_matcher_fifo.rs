@@ -48,6 +48,7 @@ impl OrderMatcher for OrderMatcherFifo {
         let mut makers: Vec<(OrderId, Decimal)> = Vec::new(); //Decimal = filled
         let mut page_to_remove = None;
 
+        // Iterate over existing pages (discrete price levels) until the order is fully matched
         'page_loop: loop {
             // Get matchable orders book pages
             let mut matchable_pages = match side {
@@ -60,7 +61,7 @@ impl OrderMatcher for OrderMatcherFifo {
                     .find(|(page_price, _)| *page_price >= price),
             };
 
-            // Orderbook still contains matchable pages, match page
+            // Orderbook still contains matchable pages, match page with FIFO
             if let Some((page_price, ref mut page)) = matchable_pages {
                 'order_loop: loop {
                     // Order fully matched, break
@@ -75,14 +76,20 @@ impl OrderMatcher for OrderMatcherFifo {
                         // Maker order fully absorbs taker order
                         if maker_order.unfilled > order.unfilled {
                             maker_order.unfilled -= order.unfilled;
+
+                            // Adjust amount of assets at current price level
                             page.amount -= order.unfilled;
+
+                            // Add maker to the list of makers that matched our order
                             makers.push((maker_order.id, order.unfilled));
 
                             order.unfilled = Decimal::ZERO;
                         } else {
                             // Maker order partially absorbs taker order
                             order.unfilled -= maker_order.unfilled;
-                            page.amount -= maker_order.unfilled; //page amount can get negative
+
+                            // Adjust amount of assets at current price level
+                            page.amount -= maker_order.unfilled;
                             makers.push((maker_order.id, maker_order.unfilled));
 
                             // Remove now empty taker order
@@ -102,17 +109,16 @@ impl OrderMatcher for OrderMatcherFifo {
             //Delete marked page
            delete_marked_page(page_to_remove, orderbook_maker);
         }
-
         // Delete (last) marked page
         delete_marked_page(page_to_remove, orderbook_maker);
 
-        //
+        // If taker isn't fully absorbed, insert order
         if order.unfilled > Decimal::zero() {
-            orderbook._insert_limit(order.clone(), side, price.clone());
+            orderbook.insert_limit(*order_id, side, *price, order.unfilled);
         }
-
+        
+        //Match whether any orders have been matched at all
         match order.unfilled == *amount {
-            //Match whether any orders have been matched at all
             true => None,
             false => Some(Match {
                 taker: order.id.clone(),
@@ -155,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_match_limit_single_price_level() {
-        let mut orderbook = Orderbook::new(Symbol::ETH);
+        let mut orderbook = Orderbook::new(Symbol::Asset2);
         let matcher = OrderMatcherFifo::new();
 
         let first_maker_id = 0;
@@ -289,7 +295,7 @@ mod tests {
 
     #[test]
     fn test_match_limit_multi_fill_best_price() {
-        let mut orderbook = Orderbook::new(Symbol::ETH);
+        let mut orderbook = Orderbook::new(Symbol::Asset2);
         let matcher = OrderMatcherFifo::new();
 
         let first_maker_id = 0;
@@ -336,7 +342,7 @@ mod tests {
 
     #[test]
     fn test_match_limit_multi_insert_remaining_amount() {
-        let mut orderbook = Orderbook::new(Symbol::ETH);
+        let mut orderbook = Orderbook::new(Symbol::Asset2);
         let matcher = OrderMatcherFifo::new();
 
         let first_maker_id = 0;
@@ -394,7 +400,7 @@ mod tests {
 
     #[test]
     fn test_match_limit_multi_maker_prices() {
-        let mut orderbook = Orderbook::new(Symbol::ETH);
+        let mut orderbook = Orderbook::new(Symbol::Asset2);
         let matcher = OrderMatcherFifo::new();
 
         let mut order_id = 0;
@@ -477,7 +483,7 @@ mod tests {
 
     #[test]
     fn test_match_endless_loop() {
-        let mut orderbook = Orderbook::new(Symbol::ETH);
+        let mut orderbook = Orderbook::new(Symbol::Asset2);
         let matcher = OrderMatcherFifo::new();
 
         let mut order_id = 6;

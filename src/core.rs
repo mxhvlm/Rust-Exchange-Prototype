@@ -1,3 +1,5 @@
+/// Main module for the exchange prototype
+
 use std::collections::HashMap;
 
 use log::{info};
@@ -9,9 +11,19 @@ use crate::symbol::Symbol;
 use crate::OrderId;
 use json::JsonValue;
 
+/// Struct holding all all exchange data
+/// 
+/// 
 pub struct ExchangeCore {
+    /// Mapping between symbol and orderbook
+    /// Used by the handler for incoming messages to look up the correct
+    /// orderbook for a given symbol
     orderbooks: HashMap<Symbol, Orderbook>,
+
+    /// Mapping between OrderId and Symbol, used for lookup and cancel messages
     orderbook_id_lookup: HashMap<OrderId, Symbol>,
+
+    /// Global seq number for orders, shared accross books
     last_order_id: OrderId,
 }
 
@@ -20,8 +32,8 @@ impl ExchangeCore {
         let mut orderbooks = HashMap::new();
         let orderbook_id_lookup = HashMap::new();
 
-        orderbooks.insert(Symbol::BTC, Orderbook::new(Symbol::BTC));
-        orderbooks.insert(Symbol::ETH, Orderbook::new(Symbol::ETH));
+        orderbooks.insert(Symbol::Asset1, Orderbook::new(Symbol::Asset1));
+        orderbooks.insert(Symbol::Asset2, Orderbook::new(Symbol::Asset2));
 
         ExchangeCore {
             orderbooks,
@@ -47,6 +59,7 @@ impl ExchangeCore {
     }
 
     // Main handler for executing incoming orders
+    // Processes an ``InboundMessage`` by resolving the order book and inserting the order
     fn process_inbound_message(&mut self, msg: &mut InboundMessage) -> String {
         match msg.message_type {
             MessageType::PlaceLimitOrder => {
@@ -59,38 +72,38 @@ impl ExchangeCore {
 
                         self.last_order_id += 1;
 
-                        let result = orderbook.insert_try_exec_limit(
+                        let limit_result = orderbook.insert_try_exec_limit(
                             &self.last_order_id,
                             side.clone(),
                             &price,
                             &amount,
                         );
 
-                        // Insert remaining order
-                        if result.is_success() {
+                        if limit_result.is_success() {
                             self.orderbook_id_lookup
                                 .insert(self.last_order_id, symbol.clone());
                         }
 
-                        JsonValue::from(result).to_string()
+                        JsonValue::from(limit_result).to_string()
                     }
                     _ => "invalid data!".to_string(),
                 }
             }
+
             MessageType::CancelLimitOrder => match msg.order_id {
                 Some(id) => match self.orderbook_id_lookup.get_mut(&id) {
                     Some(symbol) => {
-                        let result = self.orderbooks.get_mut(symbol).unwrap().cancel_limit(&id);
-                        if let CancelLimitResult::Success = result {
+                        let limit_result = self.orderbooks.get_mut(symbol).unwrap().cancel_limit(&id);
+                        if let CancelLimitResult::Success = limit_result {
                             self.orderbook_id_lookup.remove(&id);
                         }
-                        result.to_string()
+                        limit_result.to_string()
                     }
                     None => "invalid id!".to_string(),
                 },
                 _ => "no order_id given".to_string(),
             },
-            MessageType::PlaceMarketOrder => "not implemented".to_string(),
+            MessageType::PlaceMarketOrder => "not implemented".to_string(), //TODO: Use existing implementation
         }
     }
 }
