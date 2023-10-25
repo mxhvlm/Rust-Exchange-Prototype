@@ -29,3 +29,7 @@ In case price doesn't change:
 
 In case price changes:
 Cancel + Insert order => O(1) + O(log n) = O(log n)
+
+
+## Overview flowchart for future multi-threaded version 
+[Available on lucid chart](https://lucid.app/lucidchart/de4a6ac9-ffe5-4fb5-886d-55e0297dc301/edit?invitationId=inv_dd3020e6-b00b-4a6c-b2bc-8a61ca97c7a7)
