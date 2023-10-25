@@ -1,3 +1,5 @@
+use core::num;
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use exchange_prototype::order_matcher::OrderMatcher;
 use exchange_prototype::order_matcher_fifo::OrderMatcherFifo;
@@ -48,7 +50,9 @@ fn test_match_limit_performance(
 pub fn criterion_benchmark(c: &mut Criterion) {
     print!("Running criterion benchnmark...");
 
-    let mut num_orderbook_pages = 20000;
+    let num_orderbook_pages = vec![200, 2000, 20000, 200000];
+    let transaction_counts = vec![10000, 100000, 1000000];
+    let max_orderbook_pages = num_orderbook_pages.iter().max().unwrap();
 
     // Random sequences
     let mut rng_buy = StdRng::seed_from_u64(42);
@@ -69,47 +73,43 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     let mut price_levels_buy: Vec<Decimal> = normal_buy
         .sample_iter(&mut rng_buy)
-        .take(num_orderbook_pages / 2)
+        .take(max_orderbook_pages / 2)
         .map(|x: f32| Decimal::from((x * 1f32) as u32))
         .filter(|x| x.is_sign_positive())
         .collect();
     let mut price_levels_sell: Vec<Decimal> = normal_sell
         .sample_iter(&mut rng_sell)
-        .take(num_orderbook_pages / 2)
+        .take(max_orderbook_pages / 2)
         .map(|x: f32| Decimal::from((x * 1f32) as u32))
         .filter(|x| x.is_sign_positive())
         .collect();
-    price_levels_buy.sort();
-    println!("{:?}", price_levels_buy);
 
-    c.bench_function("Depth 20k orders 100k", |b| {
-        b.iter(|| {
-            test_match_limit_performance(
-                black_box(&price_levels_buy),
-                &price_levels_sell,
-                &mut orderbook,
-                &matcher,
-                100000
+    for num_pages in &num_orderbook_pages {
+        for num_transactions in &transaction_counts {
+            price_levels_buy.sort();
+
+            c.bench_function(
+                &format!(
+                    "Running test for {} discrete price levels with {}k transactions",
+                    *num_pages, *num_transactions / 1000
+                ),
+                |b| {
+                    b.iter(|| {
+                        test_match_limit_performance(
+                            black_box(&price_levels_buy.iter().take(*num_pages).copied().collect()),
+                            black_box(&price_levels_sell.iter().take(*num_pages).copied().collect()),
+                            &mut orderbook,
+                            &matcher,
+                            *num_transactions,
+                        );
+                        orderbook.orders_bid.clear();
+                        orderbook.orders_ask.clear();
+                        orderbook.orders_index.clear();
+                    })
+                },
             );
-            orderbook.orders_bid.clear();
-            orderbook.orders_ask.clear();
-            orderbook.orders_index.clear();
-        })
-    });
-    c.bench_function("Depth 20k orders 1m", |b| {
-        b.iter(|| {
-            test_match_limit_performance(
-                black_box(&price_levels_buy),
-                &price_levels_sell,
-                &mut orderbook,
-                &matcher,
-                1000000
-            );
-            orderbook.orders_bid.clear();
-            orderbook.orders_ask.clear();
-            orderbook.orders_index.clear();
-        })
-    });
+        }
+    }
 }
 
 criterion_group!(benches, criterion_benchmark);
