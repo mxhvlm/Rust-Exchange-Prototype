@@ -11,6 +11,7 @@ The orderbook consists of a set of 'pages' - one for each discrete price level. 
 1. Find the appropriate page in the B-Tree, which takes O(log n) time where n is the number of price levels.
 2. Insert the order into the LinkedHashMap at that price level. Since we're inserting at the end, it takes O(1) time.
 3. Finally, we also add the order to your index, which again takes O(1) using a HashMap.
+
 => This results in an overall complexity of O(log n) + O(1) + O(1)
 
 ### Remove / Cancel an Order
@@ -19,7 +20,7 @@ The orderbook consists of a set of 'pages' - one for each discrete price level. 
 3. Remove order from index => O(1)
 => Overall complexity: O(1) + O(1) + O(1) = O(1)
 
-### Updte Order
+### Update Order
 In case price doesn't change:
 1. Find page using index => O(1)
 2. Find order in Hashmap => O(1)
